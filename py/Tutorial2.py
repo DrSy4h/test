@@ -1,5 +1,5 @@
 # Exercise 1 & 2 (commented out for now)
-"""
+"""""
 single_quote = 'Hello'
 double_quote = "World"
 triple_quote = '''Multi-line string'''
@@ -69,7 +69,7 @@ while True:
 # Output Validation
 print(f"Hello, {name}! Welcome to JomHack Cohort 2 app.")
 print(f"You are {age} years old and your height is {height} cm.")
-"""
+
 
 
 print("")
@@ -108,5 +108,15 @@ else:
 #Display result
 print(f"The result is: {result}.")
 print("Thank you for using JomHack Calculator!")
+"""
 
+# Exercise 3(b)
+print("Exercise 3(b)")
+print('') # New line
+print("JomHack Quiz")
 
+#2. Create a simple quiz that asks the user 3 multiple-choice questions.
+score = 0
+
+# Question 1
+Answer_1 = input("What is the capital of France? ").lower()
