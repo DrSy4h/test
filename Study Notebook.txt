@@ -1,0 +1,7 @@
+checjk version
+Win: python --version
+Mac: python3 --version
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+venv Activation Mac: source venv/bin/activate
