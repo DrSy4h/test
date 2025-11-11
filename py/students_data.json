@@ -1,0 +1,50 @@
+{
+  "S001": {
+    "student_id": "S001",
+    "name": "Ahmad Ali",
+    "email": "ahmad@uni.edu",
+    "major": "Computer Science",
+    "gpa": 3.8,
+    "created_at": "2025-11-11 23:30:10"
+  },
+  "S002": {
+    "student_id": "S002",
+    "name": "Sarah Hassan",
+    "email": "sarah@uni.edu",
+    "major": "Biology",
+    "gpa": 3.9,
+    "created_at": "2025-11-11 23:30:10"
+  },
+  "S003": {
+    "student_id": "S003",
+    "name": "Muhammad Karim",
+    "email": "karim@uni.edu",
+    "major": "Engineering",
+    "gpa": 3.5,
+    "created_at": "2025-11-11 23:30:10"
+  },
+  "S004": {
+    "student_id": "S004",
+    "name": "Nur Azizah",
+    "email": "azizah@uni.edu",
+    "major": "Computer Science",
+    "gpa": 3.7,
+    "created_at": "2025-11-11 23:30:10"
+  },
+  "S005": {
+    "student_id": "S005",
+    "name": "Fatimah Zahra",
+    "email": "fatimah@uni.edu",
+    "major": "Medicine",
+    "gpa": 3.95,
+    "created_at": "2025-11-11 23:30:10"
+  },
+  "Dr Syah": {
+    "student_id": "Dr Syah",
+    "name": "Dr Syah",
+    "email": "dr@syah.com",
+    "major": "Microbiology",
+    "gpa": 3.99,
+    "created_at": "2025-11-11 23:36:57"
+  }
+}

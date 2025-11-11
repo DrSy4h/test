@@ -1,8 +1,6 @@
-# Exercise 1 & 2 (commented out for now)
-"""""
 single_quote = 'Hello'
 double_quote = "World"
-triple_quote = '''Multi-line string'''
+triple_quote = """Multi-line string"""
 
 print(single_quote)
 print(double_quote)
@@ -40,10 +38,10 @@ print(message_3)
 print("") 
 print("Exercise 2")
 
-text = '''Python is a powerful programming language. It's easy to learn and versatile.
+text = """Python is a powerful programming language. It's easy to learn and versatile.
 You can use Phython for web development, data analysis, data science, artificial intelligence, and more. The syntax is clean and readable.
 This makes Phyton perfect for beginners and experienced programmers alike.
-Join me as we take a deep-dive into the world of Python programming!'''
+Join me as we take a deep-dive into the world of Python programming!"""
 
 print(len(text)) #count letters
 print(len(text.split())) #count words
@@ -69,7 +67,6 @@ while True:
 # Output Validation
 print(f"Hello, {name}! Welcome to JomHack Cohort 2 app.")
 print(f"You are {age} years old and your height is {height} cm.")
-
 
 
 print("")
@@ -108,7 +105,7 @@ else:
 #Display result
 print(f"The result is: {result}.")
 print("Thank you for using JomHack Calculator!")
-"""
+
 
 # Exercise 3(b)
 print("Exercise 3(b)")
