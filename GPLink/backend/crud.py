@@ -125,6 +125,7 @@ def create_consultation(consultation_data: dict, clinic_doctor_email: str):
             "created_at": datetime.now(),
             "assigned_cardiologist_email": assigned_cardio_email,
             "assigned_cardiologist_name": assigned_cardio_name,
+            "lab_investigations": consultation_data.get("lab_investigations", []),
             "diagnosis": None,
             "recommendations": None,
             "cardiologist_notes": None,

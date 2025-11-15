@@ -123,6 +123,18 @@ st.markdown("""
 
 # ============= HELPER FUNCTIONS =============
 
+def format_datetime(dt_string):
+    """Format datetime string to readable format"""
+    if not dt_string or dt_string == 'N/A':
+        return 'N/A'
+    try:
+        # Parse ISO format datetime
+        dt = datetime.fromisoformat(dt_string.replace('Z', '+00:00'))
+        # Format to: 16 Nov 2025, 12:12 PM
+        return dt.strftime('%d %b %Y, %I:%M %p')
+    except:
+        return dt_string
+
 def register_doctor(name, email, role, hospital_clinic, ic_passport, mmc_number, nsr_number=None):
     """Register a new doctor"""
     payload = {
@@ -163,7 +175,7 @@ def delete_doctor(email):
     response = requests.delete(f"{API_URL}/doctors/{email}")
     return response.json()
 
-def create_consultation(patient_data, symptoms, vital_signs, clinic_doctor_email, urgency, assigned_cardiologist_email=None):
+def create_consultation(patient_data, symptoms, vital_signs, clinic_doctor_email, urgency, assigned_cardiologist_email=None, lab_investigations=None):
     """Create new consultation"""
     payload = {
         "patient": patient_data,
@@ -171,7 +183,8 @@ def create_consultation(patient_data, symptoms, vital_signs, clinic_doctor_email
         "vital_signs": vital_signs,
         "clinic_doctor_email": clinic_doctor_email,
         "urgency": urgency,
-        "assigned_cardiologist_email": assigned_cardiologist_email
+        "assigned_cardiologist_email": assigned_cardiologist_email,
+        "lab_investigations": lab_investigations or []
     }
     response = requests.post(
         f"{API_URL}/consultations?clinic_doctor_email={clinic_doctor_email}",
@@ -780,13 +793,9 @@ elif page_clean == "👨‍⚕️ Register New Doctor":
                 try:
                     response = requests.post(f"{API_URL}/doctors/register", json=doctor_data)
                     
-                    # Debug
-                    st.write(f"DEBUG: Status Code = {response.status_code}")
-                    st.write(f"DEBUG: Response = {response.text}")
-                    
                     if response.status_code == 200:
                         st.success(f"✅ Doctor registered successfully!")
-                        st.json(response.json())
+                        st.rerun()  # Refresh to clear form
                     elif response.status_code == 409:
                         # Duplicate email - set password instead
                         st.warning(f"⚠️ Email {email} already exists in database!")
@@ -1150,8 +1159,12 @@ elif page_clean == "➕ New Consultation":
             patient_gender = st.selectbox("Gender", ["Male", "Female"])
             patient_ic = st.text_input("IC/Passport No")
         
+        st.markdown("---")
+        
         st.subheader("Clinical Information")
         symptoms = st.text_area("Symptoms", height=100)
+        
+        st.markdown("---")
         
         st.subheader("Vital Signs")
         col1, col2, col3 = st.columns(3)
@@ -1164,12 +1177,28 @@ elif page_clean == "➕ New Consultation":
         with col3:
             rr = st.number_input("Respiratory Rate", min_value=0)
         
+        st.markdown("---")
+        
+        st.subheader("🧪 Lab Investigations (Optional)")
+        st.markdown("*Enter lab test results - one per line in format: Test Name | Date Time | Result*")
+        st.markdown("*Example: FBC | 2024-01-15 09:30 | WBC 12.5, RBC 4.8*")
+        lab_investigations_text = st.text_area(
+            "Lab Test Results",
+            height=100,
+            placeholder="FBC | 2024-01-15 09:30 | WBC 12.5, RBC 4.8\nLipid Profile | 2024-01-15 10:00 | Total Chol 6.2, LDL 4.1\nTroponin | 2024-01-15 11:00 | 0.05 ng/mL",
+            help="Enter each test on a new line"
+        )
+        
+        st.markdown("---")
+        
         st.subheader("📎 Medical Images (Optional)")
         col1, col2 = st.columns(2)
         with col1:
             ecg_file = st.file_uploader("Upload ECG Image", type=["jpg", "jpeg", "png", "pdf"])
         with col2:
             xray_file = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"])
+        
+        st.markdown("---")
         
         st.subheader("Assignment & Priority")
         
@@ -1222,13 +1251,30 @@ elif page_clean == "➕ New Consultation":
                         "respiratory_rate": rr
                     }
                     
+                    # Parse lab investigations from text
+                    lab_tests = []
+                    if lab_investigations_text:
+                        for line in lab_investigations_text.strip().split('\n'):
+                            if '|' in line:
+                                parts = [p.strip() for p in line.split('|')]
+                                if len(parts) >= 3:
+                                    lab_tests.append({
+                                        "test_name": parts[0],
+                                        "date_time": parts[1],
+                                        "result": parts[2]
+                                    })
+                    
+                    # Sort lab tests by date descending
+                    lab_tests.sort(key=lambda x: x['date_time'], reverse=True)
+                    
                     result = create_consultation(
                         patient_data,
                         symptoms,
                         vital_signs,
                         clinic_doctor_email,
                         urgency,
-                        assigned_cardiologist_email
+                        assigned_cardiologist_email,
+                        lab_tests
                     )
                     
                     # Handle response
@@ -1238,7 +1284,6 @@ elif page_clean == "➕ New Consultation":
                         st.info(f"Consultation ID: {consultation_id}")
                     else:
                         st.error(f"❌ Error creating consultation: {result.get('detail', 'Unknown error')}")
-                        st.json(result)
                         consultation_id = None
                     
                     # Upload images if provided
@@ -1399,6 +1444,34 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My R
                     
                     st.markdown("**Symptoms:**")
                     st.write(consult['symptoms'])
+                    
+                    # Display Lab Investigations if available
+                    if consult.get('lab_investigations') and len(consult['lab_investigations']) > 0:
+                        st.markdown("---")
+                        st.markdown("**🧪 Lab Investigations:**")
+                        # Sort by date descending
+                        sorted_labs = sorted(consult['lab_investigations'], key=lambda x: x['date_time'], reverse=True)
+                        
+                        # Create table header
+                        col1, col2, col3 = st.columns([3, 2, 3])
+                        with col1:
+                            st.markdown("**Test Name**")
+                        with col2:
+                            st.markdown("**Date & Time**")
+                        with col3:
+                            st.markdown("**Result**")
+                        
+                        st.markdown("---")
+                        
+                        # Display each lab test
+                        for lab in sorted_labs:
+                            col1, col2, col3 = st.columns([3, 2, 3])
+                            with col1:
+                                st.write(lab['test_name'])
+                            with col2:
+                                st.write(lab['date_time'])
+                            with col3:
+                                st.write(lab['result'])
                     
                     if consult['status'] in ['reviewed', 'completed']:
                         st.markdown("---")
@@ -1817,7 +1890,7 @@ elif page_clean == "💬 Respond to Consultation":
                                         cardiologist_email
                                     )
                                     st.success("✅ Response submitted successfully!")
-                                    st.json(result)
+                                    st.rerun()  # Refresh page to show updated list
                                 except Exception as e:
                                     st.error(f"❌ Error submitting response: {e}")
                             else:
@@ -1967,7 +2040,7 @@ elif page_clean == "📊 Statistics" or page_clean == "📊 My Statistics":
                             st.write(f"**Symptoms:** {selected_consult['symptoms']}")
                             st.write(f"**Urgency:** {selected_consult['urgency'].upper()}")
                             st.write(f"**Status:** {selected_consult['status'].upper()}")
-                            st.write(f"**Created:** {selected_consult.get('created_at', 'N/A')}")
+                            st.write(f"**Created:** {format_datetime(selected_consult.get('created_at', 'N/A'))}")
                         
                         with col2:
                             st.markdown("**Vital Signs:**")
@@ -2006,7 +2079,7 @@ elif page_clean == "📊 Statistics" or page_clean == "📊 My Statistics":
                             st.write(f"**Diagnosis:** {selected_consult.get('diagnosis', 'N/A')}")
                             st.write(f"**Recommendations:** {selected_consult.get('recommendations', 'N/A')}")
                             st.write(f"**Notes:** {selected_consult.get('cardiologist_notes', 'N/A')}")
-                            st.write(f"**Response Date:** {selected_consult.get('response_date', 'N/A')}")
+                            st.write(f"**Response Date:** {format_datetime(selected_consult.get('response_date', 'N/A'))}")
                         
                         if st.button("❌ Close Patient File"):
                             del st.session_state.selected_patient

@@ -47,6 +47,7 @@ class ConsultationRequest(BaseModel):
     clinic_doctor_email: EmailStr
     urgency: str = "normal"  # normal, urgent, emergency
     assigned_cardiologist_email: Optional[EmailStr] = None  # Specific cardiologist or None for "Any Available"
+    lab_investigations: Optional[List[dict]] = []  # List of lab tests: [{test_name, date_time, result}]
 
 class ConsultationResponse(BaseModel):
     consultation_id: str
@@ -70,6 +71,9 @@ class Consultation(BaseModel):
     # Assignment fields
     assigned_cardiologist_email: Optional[EmailStr] = None  # Specific cardiologist or None for "Any Available"
     assigned_cardiologist_name: Optional[str] = None
+    
+    # Lab investigations
+    lab_investigations: Optional[List[dict]] = []  # List of lab tests: [{test_name, date_time, result}]
     
     # Response fields (filled by cardiologist)
     diagnosis: Optional[str] = None
