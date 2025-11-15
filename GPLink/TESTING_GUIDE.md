@@ -670,7 +670,37 @@ Troponin levels elevated at 2.5 ng/mL."
 
 ---
 
-### ✅ Test 15: Error Handling
+### ✅ Test 16: Date/Time Formatting in Patient Files
+**Objective**: Verify that datetime values are displayed in readable format
+
+**Setup**:
+1. Create a consultation using "➕ New Consultation"
+2. Fill in all required fields with patient and clinical information
+3. Submit consultation (note the creation time)
+
+**Verification**:
+4. Navigate to **"📋 View Consultations"**
+5. Click on the consultation to view details
+6. Check **"Created"** timestamp
+7. **Expected Format**: `DD Mon YYYY, HH:MM AM/PM` (e.g., "16 Nov 2025, 04:12 PM")
+8. **NOT**: Raw ISO format like `2025-11-16T04:12:56.933000`
+
+**Response Date Format Test**:
+9. Logout and login as Cardiologist
+10. Navigate to **"💬 Respond to Consultation"**
+11. Select the consultation from step 1
+12. Provide diagnosis and recommendations
+13. Submit response
+14. View the consultation again
+15. Check **"Response Date"** in Cardiologist Response section
+16. **Expected Format**: `DD Mon YYYY, HH:MM AM/PM` (e.g., "16 Nov 2025, 12:45 PM")
+
+**Status**: ☐ Pass ☐ Fail  
+**Notes**: _______________________________
+
+---
+
+### ✅ Test 17: Error Handling
 **Objective**: Verify appropriate error messages and recovery
 
 **Test Cases**:
@@ -728,6 +758,7 @@ Troponin levels elevated at 2.5 ng/mL."
 | 13 | Branding & UI | ☐ | Medium |
 | 14 | Bulk Delete | ☐ | Medium |
 | 15 | Error Handling | ☐ | High |
+| 16 | Date/Time Formatting | ☐ | Medium |
 
 ---
 

@@ -283,6 +283,10 @@ See **TESTING_GUIDE.md** or **GPLink_Cardio_Testing_Guide.pdf** for:
 - ✅ **Password Reset** - Admin can reset any doctor's password via inline actions
 - ✅ **Forgot Password** - Help text on login page directing users to admin
 - ✅ **Session State** - Persistent authentication across page navigation
+- ✅ **Hybrid Cardiologist Assignment** - GP can assign to specific doctor or leave open for any available
+- ✅ **Smart Notification Badges** - Color-coded alerts (🔴 assigned, 🔵 unassigned) with counts
+- ✅ **Lab Investigations** - Track lab test results with sorted display by date (descending)
+- ✅ **Professional Date/Time Format** - Readable format (16 Nov 2025, 04:12 PM) in patient files
 - ✅ Added KPJ Healthcare logo in sidebar
 - ✅ Styled navigation menu with brown theme (#9A7D61)
 - ✅ Implemented GP decision system (Complete/Continue)
