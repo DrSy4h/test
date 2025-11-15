@@ -1171,7 +1171,7 @@ elif page_clean == "➕ New Consultation":
         with col2:
             xray_file = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"])
         
-        st.subheader("🎯 Assignment & Priority")
+        st.subheader("Assignment & Priority")
         
         # Get list of cardiologists
         try:
@@ -1190,8 +1190,6 @@ elif page_clean == "➕ New Consultation":
             
             if assigned_cardiologist_email:
                 st.info(f"✅ This case will be assigned to: **{cardio_options[selected_cardio_index]}**")
-            else:
-                st.info("ℹ️ This case will be available for **any Cardiologist** to respond")
         except:
             assigned_cardiologist_email = None
             st.warning("⚠️ Could not load Cardiologists list. Case will be unassigned.")
