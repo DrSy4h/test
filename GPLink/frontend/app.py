@@ -336,39 +336,38 @@ if page == "🏠 Home":
 elif page == "👨‍⚕️ Register New Doctor":
     st.header("Register New Doctor")
     
-    with st.form("register_form"):
-        name = st.text_input("Full Name *", help="Full name as per registration")
-        email = st.text_input("Email *", help="Professional email address")
-        role = st.selectbox("Role *", ["GP Clinician", "Cardiologist"], help="Select your role")
-        hospital_clinic = st.text_input("Hospital/Clinic Name *", help="Current workplace")
-        ic_passport = st.text_input("IC/Passport Number *", help="National ID or Passport number")
-        mmc_number = st.text_input("MMC Full Registration No. *", help="Malaysian Medical Council registration number")
-        
-        # NSR number only for cardiologists
-        nsr_number = ""
+    name = st.text_input("Full Name *", help="Full name as per registration")
+    email = st.text_input("Email *", help="Professional email address")
+    role = st.selectbox("Role *", ["GP Clinician", "Cardiologist"], help="Select your role")
+    hospital_clinic = st.text_input("Hospital/Clinic Name *", help="Current workplace")
+    ic_passport = st.text_input("IC/Passport Number *", help="National ID or Passport number")
+    mmc_number = st.text_input("MMC Full Registration No. *", help="Malaysian Medical Council registration number")
+    
+    # NSR number - compulsory for cardiologists, appears dynamically
+    nsr_number = ""
+    if role == "Cardiologist":
+        nsr_number = st.text_input("NSR No. * (Compulsory for Cardiologists)", help="National Specialist Register number - Required for Cardiologists")
+    
+    if st.button("Register", type="primary"):
+        # Validate all required fields
         if role == "Cardiologist":
-            nsr_number = st.text_input("NSR No. *", help="National Specialist Register number (for Cardiologists)")
+            all_filled = name and email and hospital_clinic and ic_passport and mmc_number and nsr_number
+            if not nsr_number:
+                st.error("❌ NSR No. is compulsory for Cardiologists!")
+        else:
+            all_filled = name and email and hospital_clinic and ic_passport and mmc_number
         
-        submit = st.form_submit_button("Register")
-        
-        if submit:
-            # Validate all required fields
-            if role == "Cardiologist":
-                all_filled = name and email and hospital_clinic and ic_passport and mmc_number and nsr_number
-            else:
-                all_filled = name and email and hospital_clinic and ic_passport and mmc_number
-            
-            if all_filled:
-                try:
-                    # Convert role display to backend format
-                    role_backend = "clinic_doctor" if role == "GP Clinician" else "cardiologist"
-                    result = register_doctor(name, email, role_backend, hospital_clinic, ic_passport, mmc_number, nsr_number if role == "Cardiologist" else None)
-                    st.success(f"✅ Doctor registered successfully!")
-                    st.json(result)
-                except Exception as e:
-                    st.error(f"❌ Error: {e}")
-            else:
-                st.warning("⚠️ Please fill in all required fields (marked with *)")
+        if all_filled:
+            try:
+                # Convert role display to backend format
+                role_backend = "clinic_doctor" if role == "GP Clinician" else "cardiologist"
+                result = register_doctor(name, email, role_backend, hospital_clinic, ic_passport, mmc_number, nsr_number if role == "Cardiologist" else None)
+                st.success(f"✅ Doctor registered successfully!")
+                st.json(result)
+            except Exception as e:
+                st.error(f"❌ Error: {e}")
+        else:
+            st.warning("⚠️ Please fill in all required fields (marked with *)")
 
 # ============= NEW CONSULTATION =============
 
