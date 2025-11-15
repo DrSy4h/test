@@ -105,6 +105,14 @@ def create_consultation(consultation_data: dict, clinic_doctor_email: str):
         # Generate unique consultation ID
         consultation_id = f"CON-{uuid.uuid4().hex[:8].upper()}"
         
+        # Get assigned cardiologist info if provided
+        assigned_cardio_email = consultation_data.get("assigned_cardiologist_email")
+        assigned_cardio_name = None
+        if assigned_cardio_email:
+            assigned_cardio = get_doctor_by_email(assigned_cardio_email)
+            if assigned_cardio:
+                assigned_cardio_name = assigned_cardio["name"]
+        
         consultation = {
             "consultation_id": consultation_id,
             "patient": consultation_data["patient"],
@@ -115,6 +123,8 @@ def create_consultation(consultation_data: dict, clinic_doctor_email: str):
             "urgency": consultation_data.get("urgency", "normal"),
             "status": ConsultationStatus.PENDING.value,
             "created_at": datetime.now(),
+            "assigned_cardiologist_email": assigned_cardio_email,
+            "assigned_cardiologist_name": assigned_cardio_name,
             "diagnosis": None,
             "recommendations": None,
             "cardiologist_notes": None,

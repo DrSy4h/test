@@ -163,14 +163,15 @@ def delete_doctor(email):
     response = requests.delete(f"{API_URL}/doctors/{email}")
     return response.json()
 
-def create_consultation(patient_data, symptoms, vital_signs, clinic_doctor_email, urgency):
+def create_consultation(patient_data, symptoms, vital_signs, clinic_doctor_email, urgency, assigned_cardiologist_email=None):
     """Create new consultation"""
     payload = {
         "patient": patient_data,
         "symptoms": symptoms,
         "vital_signs": vital_signs,
         "clinic_doctor_email": clinic_doctor_email,
-        "urgency": urgency
+        "urgency": urgency,
+        "assigned_cardiologist_email": assigned_cardiologist_email
     }
     response = requests.post(
         f"{API_URL}/consultations?clinic_doctor_email={clinic_doctor_email}",
@@ -548,9 +549,21 @@ try:
         new_responses = len([c for c in my_consultations if c['status'] in ['reviewed', 'completed']])
         responses_badge = f" ({new_responses})" if new_responses > 0 else ""
     elif user_role == 'cardiologist':
-        # Count pending consultations assigned to this cardiologist or unassigned
-        pending_for_me = len([c for c in all_consultations if c['status'] == 'pending'])
-        pending_badge = f" ({pending_for_me})" if pending_for_me > 0 else ""
+        # Count pending consultations: assigned to me (priority) + unassigned (available)
+        assigned_to_me = [c for c in all_consultations if c['status'] == 'pending' and c.get('assigned_cardiologist_email') == user_email]
+        unassigned = [c for c in all_consultations if c['status'] == 'pending' and not c.get('assigned_cardiologist_email')]
+        
+        assigned_count = len(assigned_to_me)
+        unassigned_count = len(unassigned)
+        
+        if assigned_count > 0 and unassigned_count > 0:
+            pending_badge = f" (🔴{assigned_count} + {unassigned_count})"  # Red badge for assigned + unassigned count
+        elif assigned_count > 0:
+            pending_badge = f" (🔴{assigned_count})"  # Only assigned cases (priority)
+        elif unassigned_count > 0:
+            pending_badge = f" ({unassigned_count})"  # Only unassigned cases
+        else:
+            pending_badge = ""
 except:
     responses_badge = ""
     pending_badge = ""
@@ -1158,6 +1171,31 @@ elif page_clean == "➕ New Consultation":
         with col2:
             xray_file = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"])
         
+        st.subheader("🎯 Assignment & Priority")
+        
+        # Get list of cardiologists
+        try:
+            all_doctors = get_all_doctors()
+            cardiologists = [d for d in all_doctors if d['role'] == 'cardiologist']
+            cardio_options = ["Any Available Cardiologist"] + [f"{c['name']} ({c['hospital_clinic']})" for c in cardiologists]
+            cardio_emails = [None] + [c['email'] for c in cardiologists]
+            
+            selected_cardio_index = st.selectbox(
+                "Assign to Cardiologist",
+                range(len(cardio_options)),
+                format_func=lambda i: cardio_options[i],
+                help="Select a specific Cardiologist or leave as 'Any Available' for open assignment"
+            )
+            assigned_cardiologist_email = cardio_emails[selected_cardio_index]
+            
+            if assigned_cardiologist_email:
+                st.info(f"✅ This case will be assigned to: **{cardio_options[selected_cardio_index]}**")
+            else:
+                st.info("ℹ️ This case will be available for **any Cardiologist** to respond")
+        except:
+            assigned_cardiologist_email = None
+            st.warning("⚠️ Could not load Cardiologists list. Case will be unassigned.")
+        
         urgency = st.selectbox(
             "Urgency Level",
             options=["normal", "urgent", "emergency"],
@@ -1191,7 +1229,8 @@ elif page_clean == "➕ New Consultation":
                         symptoms,
                         vital_signs,
                         clinic_doctor_email,
-                        urgency
+                        urgency,
+                        assigned_cardiologist_email
                     )
                     
                     # Handle response
@@ -1352,6 +1391,13 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My R
                         st.write(f"SpO2: {consult['vital_signs'].get('spo2', 'N/A')}%")
                         
                         st.markdown(f"**Urgency:** ⚠️ {consult['urgency'].upper()}")
+                        
+                        # Show assignment info
+                        if consult.get('assigned_cardiologist_email'):
+                            st.markdown(f"**🎯 Assigned to:** {consult.get('assigned_cardiologist_name', 'N/A')}")
+                            st.write(f"📧 {consult['assigned_cardiologist_email']}")
+                        else:
+                            st.markdown("**🎯 Assignment:** Any Available Cardiologist")
                     
                     st.markdown("**Symptoms:**")
                     st.write(consult['symptoms'])
@@ -1689,51 +1735,97 @@ elif page_clean == "💬 Respond to Consultation":
         pending_consultations = get_consultations("pending")
         
         if pending_consultations:
-            consultation_ids = [f"{c['consultation_id']} - {c['patient']['name']}" for c in pending_consultations]
-            selected = st.selectbox("Select Consultation", consultation_ids)
+            # Separate assigned and unassigned cases
+            assigned_to_me = [c for c in pending_consultations if c.get('assigned_cardiologist_email') == cardiologist_email]
+            unassigned = [c for c in pending_consultations if not c.get('assigned_cardiologist_email')]
+            assigned_to_others = [c for c in pending_consultations if c.get('assigned_cardiologist_email') and c.get('assigned_cardiologist_email') != cardiologist_email]
             
-            if selected:
-                consultation_id = selected.split(" - ")[0]
-                selected_consult = next(c for c in pending_consultations if c['consultation_id'] == consultation_id)
-                
-                st.subheader("Consultation Details")
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.write(f"**Patient:** {selected_consult['patient']['name']}")
-                    st.write(f"**Age:** {selected_consult['patient']['age']}")
-                    st.write(f"**Symptoms:** {selected_consult['symptoms']}")
-                with col2:
-                    st.write(f"**BP:** {selected_consult['vital_signs'].get('blood_pressure')}")
-                    st.write(f"**HR:** {selected_consult['vital_signs'].get('heart_rate')} bpm")
-                    st.write(f"**Urgency:** {selected_consult['urgency']}")
-                
-                st.markdown("---")
-                st.subheader("Your Response")
-                
-                with st.form("response_form"):
-                    diagnosis = st.text_area("Diagnosis", height=100)
-                    recommendations = st.text_area("Recommendations", height=100)
-                    notes = st.text_area("Additional Notes", height=100)
+            # Show summary
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("🔴 Assigned to You", len(assigned_to_me))
+            with col2:
+                st.metric("🔵 Unassigned (Available)", len(unassigned))
+            with col3:
+                st.metric("⚪ Assigned to Others", len(assigned_to_others))
+            
+            st.markdown("---")
+            
+            # Combine for display: assigned first (priority), then unassigned, then others
+            all_cases = assigned_to_me + unassigned + assigned_to_others
+            
+            if all_cases:
+                # Create consultation display with assignment info
+                consultation_options = []
+                for c in all_cases:
+                    assignment_icon = ""
+                    if c.get('assigned_cardiologist_email') == cardiologist_email:
+                        assignment_icon = "🔴 "  # Assigned to me (priority)
+                    elif not c.get('assigned_cardiologist_email'):
+                        assignment_icon = "🔵 "  # Unassigned (available)
+                    else:
+                        assignment_icon = "⚪ "  # Assigned to someone else
                     
-                    submit = st.form_submit_button("Submit Response")
+                    consultation_options.append(f"{assignment_icon}{c['consultation_id']} - {c['patient']['name']}")
+                
+                selected = st.selectbox("Select Consultation", consultation_options)
+                
+                if selected:
+                    # Extract consultation ID (remove icon and split)
+                    consultation_id = selected.split(" ")[1]  # Get CON-XXX part
+                    selected_consult = next(c for c in all_cases if c['consultation_id'] == consultation_id)
                     
-                    if submit:
-                        if diagnosis and recommendations:
-                            # Proceed with response submission
-                            try:
-                                result = respond_to_consultation(
-                                    consultation_id,
-                                    diagnosis,
-                                    recommendations,
-                                    notes,
-                                    cardiologist_email
-                                )
-                                st.success("✅ Response submitted successfully!")
-                                st.json(result)
-                            except Exception as e:
-                                st.error(f"❌ Error submitting response: {e}")
+                    # Show assignment info
+                    if selected_consult.get('assigned_cardiologist_email'):
+                        if selected_consult['assigned_cardiologist_email'] == cardiologist_email:
+                            st.success(f"✅ **This case is assigned to YOU**")
                         else:
-                            st.warning("Please fill in all required fields")
+                            st.warning(f"⚠️ **This case is assigned to:** {selected_consult.get('assigned_cardiologist_name', 'Another Cardiologist')}")
+                            st.info("You can still respond if needed (will override assignment)")
+                    else:
+                        st.info("ℹ️ **This case is unassigned** - Available for any Cardiologist")
+                    
+                    st.markdown("---")
+                    st.subheader("Consultation Details")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Patient:** {selected_consult['patient']['name']}")
+                        st.write(f"**Age:** {selected_consult['patient']['age']}")
+                        st.write(f"**Symptoms:** {selected_consult['symptoms']}")
+                    with col2:
+                        st.write(f"**BP:** {selected_consult['vital_signs'].get('blood_pressure')}")
+                        st.write(f"**HR:** {selected_consult['vital_signs'].get('heart_rate')} bpm")
+                        st.write(f"**Urgency:** {selected_consult['urgency']}")
+                    
+                    st.markdown("---")
+                    st.subheader("Your Response")
+                    
+                    with st.form("response_form"):
+                        diagnosis = st.text_area("Diagnosis", height=100)
+                        recommendations = st.text_area("Recommendations", height=100)
+                        notes = st.text_area("Additional Notes", height=100)
+                        
+                        submit = st.form_submit_button("Submit Response")
+                        
+                        if submit:
+                            if diagnosis and recommendations:
+                                # Proceed with response submission
+                                try:
+                                    result = respond_to_consultation(
+                                        consultation_id,
+                                        diagnosis,
+                                        recommendations,
+                                        notes,
+                                        cardiologist_email
+                                    )
+                                    st.success("✅ Response submitted successfully!")
+                                    st.json(result)
+                                except Exception as e:
+                                    st.error(f"❌ Error submitting response: {e}")
+                            else:
+                                st.warning("Please fill in all required fields")
+            else:
+                st.info("No pending consultations available")
         else:
             st.info("No pending consultations")
     except Exception as e:

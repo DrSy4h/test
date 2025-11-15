@@ -46,6 +46,7 @@ class ConsultationRequest(BaseModel):
     vital_signs: dict  # BP, HR, temp, etc.
     clinic_doctor_email: EmailStr
     urgency: str = "normal"  # normal, urgent, emergency
+    assigned_cardiologist_email: Optional[EmailStr] = None  # Specific cardiologist or None for "Any Available"
 
 class ConsultationResponse(BaseModel):
     consultation_id: str
@@ -65,6 +66,10 @@ class Consultation(BaseModel):
     urgency: str
     status: ConsultationStatus = ConsultationStatus.PENDING
     created_at: datetime = Field(default_factory=datetime.now)
+    
+    # Assignment fields
+    assigned_cardiologist_email: Optional[EmailStr] = None  # Specific cardiologist or None for "Any Available"
+    assigned_cardiologist_name: Optional[str] = None
     
     # Response fields (filled by cardiologist)
     diagnosis: Optional[str] = None
