@@ -1,0 +1,10 @@
+# Uploads folder
+This folder stores ECG and X-Ray images uploaded by clinic doctors.
+
+Images are saved with format: `{consultation_id}_{filename}`
+
+Note: On cloud platforms with ephemeral storage (like Render free tier), 
+uploaded files will be deleted on redeploy. For production, consider using:
+- AWS S3
+- Cloudinary
+- Azure Blob Storage

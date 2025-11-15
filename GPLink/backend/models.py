@@ -22,6 +22,9 @@ class Doctor(BaseModel):
     email: EmailStr
     role: DoctorRole
     hospital_clinic: str
+    ic_passport: str  # IC/Passport Number
+    mmc_number: str   # MMC Full Registration No.
+    nsr_number: Optional[str] = None  # NSR No. (for Cardiologists only)
 
 class PatientInfo(BaseModel):
     name: str

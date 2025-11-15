@@ -7,12 +7,18 @@ import streamlit as st
 import requests
 import json
 from datetime import datetime
+from io import BytesIO
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
 
 # API Base URL
 API_URL = "http://localhost:8000/api"
 
 st.set_page_config(
-    page_title="GPLink - Doctor Consultation System",
+    page_title="GPLink Cardio™ | GP-Cardiologist Consultation Portal",
     page_icon="🩺",
     layout="wide"
 )
@@ -107,14 +113,18 @@ st.markdown("""
 
 # ============= HELPER FUNCTIONS =============
 
-def register_doctor(name, email, role, hospital_clinic):
+def register_doctor(name, email, role, hospital_clinic, ic_passport, mmc_number, nsr_number=None):
     """Register a new doctor"""
     payload = {
         "name": name,
         "email": email,
         "role": role,
-        "hospital_clinic": hospital_clinic
+        "hospital_clinic": hospital_clinic,
+        "ic_passport": ic_passport,
+        "mmc_number": mmc_number
     }
+    if nsr_number:
+        payload["nsr_number"] = nsr_number
     response = requests.post(f"{API_URL}/doctors/register", json=payload)
     return response.json()
 
@@ -171,13 +181,103 @@ def upload_xray(consultation_id, file):
     response = requests.post(f"{API_URL}/consultations/{consultation_id}/upload-xray", files=files)
     return response.json()
 
+def generate_referral_letter_pdf(consultation, gp_doctor, referral_reason=""):
+    """Generate referral letter PDF"""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    
+    # Container for PDF elements
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#9A7D61'), spaceAfter=30)
+    header_style = ParagraphStyle('CustomHeader', parent=styles['Heading2'], fontSize=12, textColor=colors.HexColor('#9A7D61'), spaceAfter=12)
+    normal_style = styles['Normal']
+    
+    # Header
+    elements.append(Paragraph("<b>REFERRAL LETTER TO CARDIOLOGIST</b>", title_style))
+    elements.append(Paragraph(f"<b>GPLink Cardio™</b><br/>Date: {datetime.now().strftime('%d %B %Y')}", normal_style))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # GP Information
+    elements.append(Paragraph("<b>From:</b>", header_style))
+    elements.append(Paragraph(f"{gp_doctor['name']}<br/>{gp_doctor['hospital_clinic']}<br/>MMC: {gp_doctor.get('mmc_number', 'N/A')}<br/>Email: {gp_doctor['email']}", normal_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Patient Information
+    elements.append(Paragraph("<b>Patient Information:</b>", header_style))
+    patient = consultation['patient']
+    patient_data = [
+        ['Name:', patient['name']],
+        ['IC Number:', patient['ic_number']],
+        ['Age:', f"{patient['age']} years"],
+        ['Gender:', patient['gender']]
+    ]
+    patient_table = Table(patient_data, colWidths=[2*inch, 4*inch])
+    patient_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#9A7D61')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    elements.append(patient_table)
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Clinical Information
+    elements.append(Paragraph("<b>Presenting Symptoms:</b>", header_style))
+    elements.append(Paragraph(consultation['symptoms'], normal_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Vital Signs
+    elements.append(Paragraph("<b>Vital Signs:</b>", header_style))
+    vs = consultation['vital_signs']
+    vital_data = [
+        ['Blood Pressure:', vs.get('blood_pressure', 'N/A')],
+        ['Heart Rate:', f"{vs.get('heart_rate', 'N/A')} bpm"],
+        ['Temperature:', f"{vs.get('temperature', 'N/A')}°C"],
+        ['SpO2:', f"{vs.get('spo2', 'N/A')}%"],
+        ['Respiratory Rate:', f"{vs.get('respiratory_rate', 'N/A')} /min"]
+    ]
+    vital_table = Table(vital_data, colWidths=[2*inch, 2*inch])
+    vital_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#9A7D61')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    elements.append(vital_table)
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Reason for Referral
+    if referral_reason:
+        elements.append(Paragraph("<b>Reason for Referral:</b>", header_style))
+        elements.append(Paragraph(referral_reason, normal_style))
+        elements.append(Spacer(1, 0.2*inch))
+    
+    # Urgency
+    elements.append(Paragraph(f"<b>Urgency Level:</b> {consultation['urgency'].upper()}", header_style))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Footer
+    elements.append(Paragraph("<i>I would appreciate your expert opinion on this patient's cardiac condition. Thank you for your assistance.</i>", normal_style))
+    elements.append(Spacer(1, 0.3*inch))
+    elements.append(Paragraph(f"<b>Yours sincerely,</b><br/>{gp_doctor['name']}<br/>{gp_doctor['hospital_clinic']}", normal_style))
+    elements.append(Spacer(1, 0.5*inch))
+    elements.append(Paragraph("<i>Generated by GPLink Cardio™ © 2025 DRAHMADSYAHID</i>", ParagraphStyle('Footer', parent=normal_style, fontSize=8, textColor=colors.grey)))
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
 # ============= MAIN APP =============
 
 # Custom header with theme color
 st.markdown("""
 <div class="main-header">
-    <h1>GPLink - Doctor Consultation System</h1>
-    <p>Connecting clinic doctors with cardiologists for better patient care</p>
+    <h1>GPLink Cardio™</h1>
+    <p>GP-Cardiologist Consultation Portal | Connecting GP Clinicians with Cardiologists for Better Patient Care</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -185,7 +285,7 @@ st.markdown("""
 st.sidebar.markdown("### 📋 Navigation Menu")
 page = st.sidebar.selectbox(
     "Select Page",
-    ["🏠 Home", "👨‍⚕️ Register Doctor", "➕ New Consultation", "📋 View Consultations", "💬 Respond to Consultation", "📊 Statistics"]
+    ["🏠 Home", "👨‍⚕️ Register New Doctor", "➕ New Consultation", "📋 View Consultations", "💬 Respond to Consultation", "📊 Statistics"]
 )
 
 # ============= HOME PAGE =============
@@ -193,22 +293,23 @@ page = st.sidebar.selectbox(
 if page == "🏠 Home":
     st.header("Welcome to GPLink!")
     st.markdown("""
-    ### About GPLink
-    GPLink is a consultation system that connects clinic doctors with specialist cardiologists.
+    ### About GPLink Cardio™
+    GPLink Cardio™ is a consultation system that connects GP clinicians with specialist cardiologists.
     
-    **For Clinic Doctors:**
+    **For GP Clinicians:**
     - Submit consultation requests for patients with cardiac concerns
     - Get expert advice from cardiologists
+    - Generate referral letters
     - Track consultation status
     
     **For Cardiologists:**
-    - Review consultation requests from clinic doctors
+    - Review consultation requests from GP clinicians
     - Provide diagnosis and recommendations
     - Help improve patient outcomes
     
     **Getting Started:**
-    1. Register as a doctor (Clinic Doctor or Cardiologist)
-    2. Clinic doctors can create new consultations
+    1. Register as a doctor (GP Clinician or Cardiologist)
+    2. GP Clinicians can create new consultations and generate referral letters
     3. Cardiologists can review and respond to consultations
     """)
     
@@ -232,27 +333,42 @@ if page == "🏠 Home":
 
 # ============= REGISTER DOCTOR =============
 
-elif page == "👨‍⚕️ Register Doctor":
+elif page == "👨‍⚕️ Register New Doctor":
     st.header("Register New Doctor")
     
     with st.form("register_form"):
-        name = st.text_input("Full Name")
-        email = st.text_input("Email")
-        role = st.selectbox("Role", ["clinic_doctor", "cardiologist"])
-        hospital_clinic = st.text_input("Hospital/Clinic Name")
+        name = st.text_input("Full Name *", help="Full name as per registration")
+        email = st.text_input("Email *", help="Professional email address")
+        role = st.selectbox("Role *", ["GP Clinician", "Cardiologist"], help="Select your role")
+        hospital_clinic = st.text_input("Hospital/Clinic Name *", help="Current workplace")
+        ic_passport = st.text_input("IC/Passport Number *", help="National ID or Passport number")
+        mmc_number = st.text_input("MMC Full Registration No. *", help="Malaysian Medical Council registration number")
+        
+        # NSR number only for cardiologists
+        nsr_number = ""
+        if role == "Cardiologist":
+            nsr_number = st.text_input("NSR No. *", help="National Specialist Register number (for Cardiologists)")
         
         submit = st.form_submit_button("Register")
         
         if submit:
-            if name and email and hospital_clinic:
+            # Validate all required fields
+            if role == "Cardiologist":
+                all_filled = name and email and hospital_clinic and ic_passport and mmc_number and nsr_number
+            else:
+                all_filled = name and email and hospital_clinic and ic_passport and mmc_number
+            
+            if all_filled:
                 try:
-                    result = register_doctor(name, email, role, hospital_clinic)
+                    # Convert role display to backend format
+                    role_backend = "clinic_doctor" if role == "GP Clinician" else "cardiologist"
+                    result = register_doctor(name, email, role_backend, hospital_clinic, ic_passport, mmc_number, nsr_number if role == "Cardiologist" else None)
                     st.success(f"✅ Doctor registered successfully!")
                     st.json(result)
                 except Exception as e:
                     st.error(f"❌ Error: {e}")
             else:
-                st.warning("Please fill in all fields")
+                st.warning("⚠️ Please fill in all required fields (marked with *)")
 
 # ============= NEW CONSULTATION =============
 
@@ -260,8 +376,8 @@ elif page == "➕ New Consultation":
     st.header("Create New Consultation Request")
     
     with st.form("consultation_form"):
-        st.subheader("Clinic Doctor Information")
-        clinic_doctor_email = st.text_input("Your Email (Clinic Doctor)")
+        st.subheader("GP Clinician Information")
+        clinic_doctor_email = st.text_input("Your Email (GP Clinician)")
         
         st.subheader("Patient Information")
         col1, col2 = st.columns(2)
@@ -404,6 +520,41 @@ elif page == "📋 View Consultations":
                         st.markdown(f"**Diagnosis:** {consult.get('diagnosis', 'N/A')}")
                         st.markdown(f"**Recommendations:** {consult.get('recommendations', 'N/A')}")
                         st.markdown(f"**Notes:** {consult.get('cardiologist_notes', 'N/A')}")
+                    
+                    # Generate Referral Letter button
+                    st.markdown("---")
+                    col1, col2, col3 = st.columns([2, 2, 1])
+                    with col1:
+                        referral_reason = st.text_area(
+                            "Reason for Referral (optional)",
+                            value=f"Request for specialist cardiology opinion regarding {consult['symptoms'][:50]}...",
+                            key=f"reason_{consult['consultation_id']}",
+                            height=100
+                        )
+                    
+                    with col2:
+                        if st.button("📄 Generate Referral Letter", key=f"ref_{consult['consultation_id']}"):
+                            try:
+                                # Get GP doctor details
+                                gp_email = consult['clinic_doctor_email']
+                                gp_doctor_response = requests.get(f"{API_URL}/doctors/{gp_email}")
+                                
+                                if gp_doctor_response.status_code == 200:
+                                    gp_doctor = gp_doctor_response.json()
+                                    pdf_buffer = generate_referral_letter_pdf(consult, gp_doctor, referral_reason)
+                                    
+                                    st.download_button(
+                                        label="💾 Download Referral Letter (PDF)",
+                                        data=pdf_buffer,
+                                        file_name=f"Referral_Letter_{consult['consultation_id']}_{consult['patient']['name'].replace(' ', '_')}.pdf",
+                                        mime="application/pdf",
+                                        key=f"download_{consult['consultation_id']}"
+                                    )
+                                    st.success("✅ Referral letter generated! Click Download button above.")
+                                else:
+                                    st.error("❌ Could not fetch GP doctor details")
+                            except Exception as e:
+                                st.error(f"❌ Error generating letter: {e}")
         else:
             st.info("No consultations found")
     except Exception as e:

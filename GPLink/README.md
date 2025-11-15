@@ -1,6 +1,6 @@
-# GPLink - Doctor Consultation System
+# GPLink Cardio™ - GP-Cardiologist Consultation Portal
 
-🏥 A consultation platform connecting clinic doctors with specialist cardiologists
+🩺 A consultation platform connecting GP Clinicians with specialist Cardiologists
 
 ## Features
 
@@ -8,8 +8,10 @@
 - ✅ **FastAPI Backend** - RESTful API with automatic Swagger documentation
 - ✅ **MongoDB Database** - NoSQL database for flexible data storage
 - ✅ **Streamlit Frontend** - Interactive web interface
-- ✅ **Role-based Access** - Separate flows for clinic doctors and cardiologists
+- ✅ **Role-based Access** - Separate flows for GP Clinicians and Cardiologists
 - ✅ **Medical Image Upload** - Upload and view ECG and X-Ray images
+- ✅ **Referral Letter Generation** - Auto-generate PDF referral letters with edit capability
+- ✅ **Professional Registration** - MMC, IC/Passport, NSR number validation
 
 ## Project Structure
 

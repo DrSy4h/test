@@ -15,7 +15,7 @@ def format_datetime(dt):
         return dt.strftime("%Y-%m-%d %H:%M:%S")
     return "N/A"
 
-class Database:
+class DatabaseManager:
     def __init__(self, db_name=db_name, connection_string=mongo_uri):
         try:
             self.client = MongoClient(connection_string)
@@ -135,7 +135,7 @@ def display_menu():
 def main():
     """Main interactive CLI function"""
     try:
-        db = Database()
+        db = DatabaseManager()
         print("Connected to MongoDB database.")
     except Exception as e:
         print(f"Failed to connect to MongoDB: {e}")
