@@ -1,0 +1,9 @@
+fastapi==0.121.1
+uvicorn==0.38.0
+pymongo==4.15.3
+python-dotenv==1.2.1
+pydantic==2.12.4
+streamlit==1.39.0
+requests==2.32.3
+python-multipart==0.0.20
+email-validator==2.3.0
