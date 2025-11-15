@@ -66,6 +66,32 @@ def get_all_doctors():
         doc["_id"] = str(doc["_id"])
     return doctors
 
+def update_doctor(email: str, doctor: Doctor):
+    """Update doctor information"""
+    try:
+        doctor_dict = doctor.dict()
+        result = doctors_collection.update_one(
+            {"email": email},
+            {"$set": doctor_dict}
+        )
+        if result.modified_count > 0:
+            return {"success": True, "message": "Doctor updated successfully"}
+        else:
+            return {"success": False, "error": "Doctor not found or no changes made"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def delete_doctor(email: str):
+    """Delete doctor by email"""
+    try:
+        result = doctors_collection.delete_one({"email": email})
+        if result.deleted_count > 0:
+            return {"success": True, "message": "Doctor deleted successfully"}
+        else:
+            return {"success": False, "error": "Doctor not found"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 # ============= CONSULTATIONS =============
 
 def create_consultation(consultation_data: dict, clinic_doctor_email: str):
@@ -133,6 +159,55 @@ def get_consultations_by_clinic_doctor(email: str):
     for consult in consultations:
         consult["_id"] = str(consult["_id"])
     return consultations
+
+def delete_consultation(consultation_id: str):
+    """Delete a consultation by ID"""
+    try:
+        result = consultations_collection.delete_one({"consultation_id": consultation_id})
+        if result.deleted_count > 0:
+            return {"success": True, "message": "Consultation deleted successfully"}
+        else:
+            return {"success": False, "error": "Consultation not found"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def update_consultation(consultation_id: str, consultation_data: dict):
+    """Update consultation details"""
+    try:
+        # Build update data dynamically
+        update_data = {}
+        
+        if "patient" in consultation_data:
+            update_data["patient"] = consultation_data["patient"]
+        if "symptoms" in consultation_data:
+            update_data["symptoms"] = consultation_data["symptoms"]
+        if "vital_signs" in consultation_data:
+            update_data["vital_signs"] = consultation_data["vital_signs"]
+        if "urgency" in consultation_data:
+            update_data["urgency"] = consultation_data["urgency"]
+        
+        # Handle image URLs (including removal if set to None)
+        if "ecg_image_url" in consultation_data:
+            update_data["ecg_image_url"] = consultation_data["ecg_image_url"]
+        if "xray_image_url" in consultation_data:
+            update_data["xray_image_url"] = consultation_data["xray_image_url"]
+        
+        # Check if consultation exists
+        existing = consultations_collection.find_one({"consultation_id": consultation_id})
+        if not existing:
+            return {"success": False, "error": "Consultation not found"}
+        
+        # Perform update if there's data to update
+        if update_data:
+            result = consultations_collection.update_one(
+                {"consultation_id": consultation_id},
+                {"$set": update_data}
+            )
+            return {"success": True, "message": "Consultation updated successfully"}
+        else:
+            return {"success": True, "message": "No changes to update"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 def update_consultation_response(consultation_id: str, response_data: dict, cardiologist_email: str):
     """Cardiologist adds response to consultation"""

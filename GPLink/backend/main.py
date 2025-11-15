@@ -61,6 +61,24 @@ def get_doctor(email: str):
     else:
         raise HTTPException(status_code=404, detail="Doctor not found")
 
+@app.put("/api/doctors/{email}", tags=["Doctors"])
+def update_doctor(email: str, doctor: Doctor):
+    """Update doctor information"""
+    result = crud.update_doctor(email, doctor)
+    if result["success"]:
+        return {"message": result["message"]}
+    else:
+        raise HTTPException(status_code=404, detail=result["error"])
+
+@app.delete("/api/doctors/{email}", tags=["Doctors"])
+def delete_doctor(email: str):
+    """Delete a doctor by email"""
+    result = crud.delete_doctor(email)
+    if result["success"]:
+        return {"message": result["message"]}
+    else:
+        raise HTTPException(status_code=404, detail=result["error"])
+
 # ============= CONSULTATIONS ENDPOINTS =============
 
 @app.post("/api/consultations", tags=["Consultations"])
@@ -109,6 +127,24 @@ def get_consultation(consultation_id: str):
 def get_doctor_consultations(email: str):
     """Get all consultations created by a specific clinic doctor"""
     return crud.get_consultations_by_clinic_doctor(email)
+
+@app.put("/api/consultations/{consultation_id}", tags=["Consultations"])
+def update_consultation(consultation_id: str, consultation: ConsultationRequest):
+    """Update consultation details"""
+    result = crud.update_consultation(consultation_id, consultation.dict())
+    if result["success"]:
+        return {"message": result["message"]}
+    else:
+        raise HTTPException(status_code=404, detail=result["error"])
+
+@app.delete("/api/consultations/{consultation_id}", tags=["Consultations"])
+def delete_consultation(consultation_id: str):
+    """Delete a consultation by ID"""
+    result = crud.delete_consultation(consultation_id)
+    if result["success"]:
+        return {"message": result["message"]}
+    else:
+        raise HTTPException(status_code=404, detail=result["error"])
 
 @app.put("/api/consultations/{consultation_id}/respond", tags=["Consultations"])
 def respond_to_consultation(
