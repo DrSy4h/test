@@ -8,6 +8,35 @@
 
 ---
 
+## 🔗 Quick Access Links
+
+### **Frontend (User Interface)**
+- **URL**: http://localhost:8501
+- **Access**: Main application interface for doctors
+- **Features**: Login, Create Consultations, Respond to Cases, View Reports
+
+### **Backend API**
+- **URL**: http://127.0.0.1:8000
+- **Access**: REST API endpoints
+- **Health Check**: http://127.0.0.1:8000/health
+
+### **API Documentation (Swagger)**
+- **URL**: http://127.0.0.1:8000/docs
+- **Access**: Interactive API documentation
+- **Features**: Test API endpoints, View request/response schemas
+
+### **Alternative API Docs (ReDoc)**
+- **URL**: http://127.0.0.1:8000/redoc
+- **Access**: Alternative documentation format
+- **Features**: Clean, organized API reference
+
+### **Database**
+- **Type**: MongoDB Atlas
+- **Database Name**: gplink_db
+- **Collections**: doctors, consultations
+
+---
+
 ## Prerequisites
 - Backend running on: http://127.0.0.1:8000
 - Frontend running on: http://localhost:8501
@@ -16,6 +45,164 @@
 ---
 
 ## 📋 TESTING CHECKLIST
+
+### ✅ Test 0: Authentication & Login System
+**Objective**: Verify authentication system with bcrypt password hashing
+
+**Registration Test**:
+1. Navigate to login page
+2. Click **"👨‍⚕️ Register New Account"** button
+3. Fill registration form:
+   ```
+   Full Name: Dr. Admin Test
+   Email: admin@gplink.com
+   Password: admin123
+   Confirm Password: admin123
+   Role: Admin
+   Hospital/Clinic: GPLink HQ
+   IC/Passport No: 900101-01-1234
+   MMC No.: MMC99999
+   ```
+4. Click **"✅ Register"**
+5. **Expected**: Success message "✅ Registration successful! Please login with your credentials."
+
+**Login Test**:
+6. Enter registered email and password
+7. Click **"🔓 Login"**
+8. **Expected**: 
+   - Success message "✅ Welcome back, Dr. Admin Test!"
+   - Redirected to Home page
+   - User info shown in sidebar
+   - Role-based menu appears
+   - Logout button visible at bottom
+
+**Invalid Login Test**:
+9. Logout and try login with wrong password
+10. **Expected**: Error message "❌ Invalid credentials"
+
+**Forgot Password Flow**:
+11. Check login page for help text
+12. **Expected**: Info box showing "🔑 Forgot Password? Contact your Admin to reset your password."
+
+**Status**: ☐ Pass ☐ Fail  
+**Notes**: _______________________________
+
+---
+
+### ✅ Test 0.1: Role-Based Access Control & Notifications
+**Objective**: Verify different navigation menus based on user role and notification badges
+
+**GP Clinician Menu Test**:
+1. Login as GP Clinician
+2. **Expected Navigation Options**:
+   - 🏠 Home
+   - ➕ New Consultation
+   - 📋 View My Consultations (may show count badge if responses available)
+   - 📊 My Statistics
+3. **Expected**: Cannot see Admin/Cardiologist-specific pages
+4. **Notification Badge**: Shows count of reviewed/completed consultations, e.g., "📋 View My Consultations (3)"
+
+**Cardiologist Menu Test**:
+5. Logout and login as Cardiologist
+6. **Expected Navigation Options**:
+   - 🏠 Home
+   - 💬 Respond to Consultation (may show count badge if pending cases)
+   - 📋 View My Responses
+   - 📊 My Statistics
+7. **Expected**: Cannot create consultations or manage doctors
+8. **Notification Badge**: Shows count of pending consultations, e.g., "💬 Respond to Consultation (5)"
+
+**Admin Menu Test**:
+9. Logout and login as Admin
+10. **Expected Navigation Options**:
+    - 🏠 Home
+    - 👨‍⚕️ Register New Doctor
+    - 👥 Manage Doctors
+    - ➕ New Consultation
+    - 💬 Respond to Consultation
+    - 📋 View Consultations
+    - 📊 Statistics
+11. **Expected**: Full system access, all features available
+
+**Data Filtering Test**:
+12. Login as GP Clinician
+13. Navigate to **"📋 View My Consultations"**
+14. **Expected**: Only shows consultations created by this GP (filtered by clinic_doctor_email)
+15. Logout and login as Cardiologist
+16. Navigate to **"📋 View My Responses"**
+17. **Expected**: Only shows consultations this Cardiologist has responded to (filtered by cardiologist_email)
+18. Login as Admin
+19. Navigate to **"📋 View Consultations"**
+20. **Expected**: Shows ALL consultations in the system (no filtering)
+
+**Status**: ☐ Pass ☐ Fail  
+**Notes**: _______________________________
+
+---
+
+### ✅ Test 0.2: Password Reset (Admin Feature)
+**Objective**: Admin resets password for any doctor
+
+**Steps**:
+1. Login as Admin
+2. Navigate to **"👥 Manage Doctors"** page
+3. Find any doctor in the list
+4. Click **"🔑 Reset Password"** button
+5. **Expected**: Reset password form appears inline
+
+**Reset Password Form Test**:
+6. Enter new password: "newpass123"
+7. Confirm password: "newpass123"
+8. Click **"✅ Update"**
+9. **Expected**: Success message "✅ Password updated!"
+
+**Validation Tests**:
+10. Try resetting with mismatched passwords
+11. **Expected**: Error "❌ Passwords do not match!"
+12. Try password less than 6 characters
+13. **Expected**: Error "❌ Password must be at least 6 characters!"
+
+**Verify Password Changed**:
+14. Logout
+15. Login with doctor's email and NEW password
+16. **Expected**: Login successful
+
+**Cancel Test**:
+17. Login as Admin again
+18. Click **"🔑 Reset Password"** on another doctor
+19. Click **"❌ Cancel"**
+20. **Expected**: Form closes without changes
+
+**Status**: ☐ Pass ☐ Fail  
+**Notes**: _______________________________
+
+---
+
+### ✅ Test 0.3: Logout Functionality
+**Objective**: Verify logout button and session clearing
+
+**Steps**:
+1. Login with any account
+2. Navigate to Home page
+3. Locate **"LOGOUT"** button at bottom of sidebar
+4. Verify button styling:
+   - **Expected**: Brown background (#9A7D61), white text, clearly visible
+5. Click **"LOGOUT"** button
+6. **Expected**: 
+   - Redirected to login page immediately
+   - Session cleared (can't navigate back to protected pages)
+   - No user info in sidebar
+
+**Session Persistence Test**:
+7. Login again
+8. Navigate to different pages (New Consultation, View Consultations, etc.)
+9. **Expected**: User remains logged in across all pages
+10. Only logout when clicking LOGOUT button
+
+**Status**: ☐ Pass ☐ Fail  
+**Notes**: _______________________________
+
+---
 
 ### ✅ Test 1: Dynamic NSR Field (Critical Feature)
 **Objective**: Verify NSR field appears dynamically based on role selection
@@ -187,30 +374,46 @@ Urgency: 🔴 Emergency
 
 ---
 
-### ✅ Test 7: Manage Doctors
-**Objective**: Test doctor management with separate sections
+### ✅ Test 7: Manage Doctors with Password Reset
+**Objective**: Test doctor management with separate sections and inline password reset
 
 **Steps**:
-1. Navigate to **"👥 Manage Doctors"** page
-2. Verify two sections:
+1. Login as Admin
+2. Navigate to **"👥 Manage Doctors"** page
+3. Verify two sections:
    - **❤️ Cardiologists** (shows NSR numbers)
    - **🩺 GP Clinicians**
 
 **Search Test**:
-3. Enter "sarah" in search box
-4. **Expected**: Filters to show only Dr. Sarah Lim
+4. Enter "sarah" in search box
+5. **Expected**: Filters to show only Dr. Sarah Lim
+
+**3-Column Action Buttons Test**:
+6. Expand any doctor card
+7. Verify 3 action buttons visible:
+   - ✏️ **Edit**
+   - 🔑 **Reset Password**
+   - 🗑️ **Delete**
 
 **Edit Doctor Test**:
-5. Click **"✏️ Edit"** on any doctor
-6. Change hospital name
-7. Click **"Save Changes"**
-8. **Expected**: Success message "✅ Doctor updated successfully!"
+8. Click **"✏️ Edit"** on any doctor
+9. Change hospital name
+10. Click **"💾 Save Changes"**
+11. **Expected**: Success message "✅ Doctor updated successfully!"
+
+**Reset Password Test**:
+12. Click **"🔑 Reset Password"** on a doctor
+13. **Expected**: Password reset form appears inline
+14. Enter new password (min 6 chars) and confirm
+15. Click **"✅ Update"**
+16. **Expected**: Success message "✅ Password updated!"
+17. Form closes automatically
 
 **Delete Doctor Test**:
-9. Click **"🗑️ Delete"** on a test doctor
-10. **Expected**: Confirmation dialog appears
-11. Click **"Yes, Delete"**
-12. **Expected**: Success message, doctor removed from list
+18. Click **"🗑️ Delete"** on a test doctor
+19. **Expected**: Confirmation dialog appears
+20. Click **"✅ Yes"**
+21. **Expected**: Success message, doctor removed from list
 
 **Status**: ☐ Pass ☐ Fail  
 **Notes**: _______________________________
@@ -506,13 +709,17 @@ Troponin levels elevated at 2.5 ng/mL."
 
 | Test # | Test Name | Status | Priority |
 |--------|-----------|--------|----------|
+| 0 | Authentication & Login | ☐ | Critical |
+| 0.1 | Role-Based Access Control | ☐ | Critical |
+| 0.2 | Password Reset (Admin) | ☐ | High |
+| 0.3 | Logout Functionality | ☐ | High |
 | 1 | Dynamic NSR Field | ☐ | Critical |
 | 2 | Real-time Email Validation | ☐ | High |
 | 3 | GP Registration | ☐ | High |
 | 4 | Cardiologist Registration | ☐ | High |
 | 5 | Create Consultation | ☐ | High |
 | 6 | Edit Consultation & Images | ☐ | Critical |
-| 7 | Manage Doctors | ☐ | High |
+| 7 | Manage Doctors with Password Reset | ☐ | High |
 | 8 | View Consultation | ☐ | High |
 | 9 | Cardiologist Response | ☐ | High |
 | 10 | GP Decision Workflow | ☐ | Critical |

@@ -16,6 +16,7 @@ class ConsultationStatus(str, Enum):
 class DoctorRole(str, Enum):
     CLINIC = "clinic_doctor"
     CARDIOLOGIST = "cardiologist"
+    ADMIN = "admin"
 
 class Doctor(BaseModel):
     name: str
@@ -25,6 +26,11 @@ class Doctor(BaseModel):
     ic_passport: str  # IC/Passport Number
     mmc_number: str   # MMC Full Registration No.
     nsr_number: Optional[str] = None  # NSR No. (for Cardiologists only)
+    password: str  # Hashed password for authentication
+
+class DoctorLogin(BaseModel):
+    email: EmailStr
+    password: str
 
 class PatientInfo(BaseModel):
     name: str

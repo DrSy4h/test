@@ -8,13 +8,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from models import (
-    Doctor, ConsultationRequest, ConsultationResponse,
+    Doctor, DoctorLogin, ConsultationRequest, ConsultationResponse,
     ConsultationStatus, DoctorRole
 )
+from passlib.context import CryptContext
+from database import doctors_collection, consultations_collection
 import crud
 from typing import List, Optional
 from pathlib import Path
 import json
+
+# Password hashing context with truncate_error=False to auto-truncate long passwords
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__truncate_error=False)
 
 app = FastAPI(
     title="GPLink API",
@@ -41,11 +46,56 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 @app.post("/api/doctors/register", tags=["Doctors"])
 def register_doctor(doctor: Doctor):
     """Register a new doctor (clinic doctor or cardiologist)"""
-    result = crud.create_doctor(doctor)
-    if result["success"]:
-        return {"message": "Doctor registered successfully", "doctor_id": result["doctor_id"]}
-    else:
-        raise HTTPException(status_code=400, detail=result["error"])
+    try:
+        import bcrypt
+        from pymongo.errors import DuplicateKeyError
+        
+        # Manually hash with bcrypt - truncate to 72 bytes
+        password_bytes = doctor.password.encode('utf-8')[:72]
+        hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
+        hashed_password = hashed.decode('utf-8')
+        
+        # Prepare doctor data with hashed password
+        doctor_data = doctor.model_dump()
+        doctor_data["password"] = hashed_password
+        
+        # Save to database
+        result = doctors_collection.insert_one(doctor_data)
+        
+        return {"message": "Doctor registered successfully", "doctor_id": str(result.inserted_id)}
+    except DuplicateKeyError:
+        # Email already exists - return special error for frontend to handle
+        raise HTTPException(
+            status_code=409, 
+            detail=f"DUPLICATE_EMAIL:{doctor.email}"
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Registration error: {str(e)}")
+
+@app.post("/api/doctors/login", tags=["Doctors"])
+def login_doctor(login_data: DoctorLogin):
+    """Authenticate doctor and return user information"""
+    import bcrypt
+    
+    doctor = crud.get_doctor_by_email(login_data.email)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Email not found")
+    
+    # Verify password with bcrypt
+    password_bytes = login_data.password.encode('utf-8')
+    stored_hash = doctor.get("password", "").encode('utf-8')
+    
+    if not bcrypt.checkpw(password_bytes, stored_hash):
+        raise HTTPException(status_code=401, detail="Incorrect password")
+    
+    # Remove password from response
+    doctor_info = {k: v for k, v in doctor.items() if k != "password"}
+    return {
+        "message": "Login successful",
+        "user": doctor_info
+    }
 
 @app.get("/api/doctors", tags=["Doctors"])
 def get_all_doctors():
@@ -60,6 +110,33 @@ def get_doctor(email: str):
         return doctor
     else:
         raise HTTPException(status_code=404, detail="Doctor not found")
+
+@app.put("/api/doctors/{email}/password", tags=["Doctors"])
+def set_doctor_password(email: str, password_data: dict):
+    """Set or update password for existing doctor"""
+    import bcrypt
+    
+    # Check if doctor exists
+    doctor = crud.get_doctor_by_email(email)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+    
+    # Hash the new password
+    password = password_data.get("password", "")
+    password_bytes = password.encode('utf-8')[:72]
+    hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
+    hashed_password = hashed.decode('utf-8')
+    
+    # Update password in database
+    result = doctors_collection.update_one(
+        {"email": email},
+        {"$set": {"password": hashed_password}}
+    )
+    
+    if result.modified_count > 0:
+        return {"message": "Password set successfully"}
+    else:
+        return {"message": "Password already set or no changes made"}
 
 @app.put("/api/doctors/{email}", tags=["Doctors"])
 def update_doctor(email: str, doctor: Doctor):

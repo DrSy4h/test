@@ -9,3 +9,5 @@ python-multipart==0.0.20
 email-validator==2.3.0
 reportlab==4.2.5
 plotly==5.24.1
+passlib
+bcrypt

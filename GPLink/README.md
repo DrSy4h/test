@@ -4,6 +4,13 @@
 
 ## 🌟 Features
 
+### Authentication & Security
+- ✅ **Login System** - Secure authentication with bcrypt password hashing
+- ✅ **Role-Based Access Control** - Separate access for GP Clinicians, Cardiologists, and Admin
+- ✅ **Session Management** - Persistent login sessions with logout functionality
+- ✅ **Password Reset** - Admin can reset passwords for any doctor
+- ✅ **Registration** - Self-registration for new doctors with email validation
+
 ### Core Functionality
 - ✅ **Full CRUD Operations** - Create, Read, Update, Delete for consultations and doctors
 - ✅ **Real-time Email Validation** - Instant verification for GP and Cardiologist emails
@@ -12,7 +19,7 @@
 - ✅ **Consultation Workflow** - Pending → Reviewed → Completed status tracking
 - ✅ **GP Decision System** - Complete or Continue discussion after cardiologist response
 - ✅ **Bulk Operations** - Multi-select delete with confirmation
-- ✅ **Doctor Management** - Separate management for Cardiologists and GP Clinicians
+- ✅ **Doctor Management** - Separate management for Cardiologists and GP Clinicians with inline password reset
 
 ### User Interface
 - ✅ **KPJ Branded Navigation** - Styled sidebar with KPJ Healthcare logo
@@ -62,6 +69,8 @@ pip install -r requirements.txt
 - plotly==5.24.1
 - reportlab==4.2.5
 - requests==2.32.3
+- bcrypt==4.0.1 (for password hashing)
+- pydantic==2.12.4
 
 ### 2. Configure Environment
 
@@ -95,9 +104,21 @@ streamlit run app.py
 
 ## 📖 Usage Guide
 
+### First Time Setup:
+
+1. **Register as Admin** - Create first account with Admin role
+   - Fill in: Name, Email, Password (min 6 characters), Hospital/Clinic, IC/Passport, MMC Number
+   - Role: Select "Admin"
+   - Click "Register" and then "Login"
+
+2. **Login** - Use registered email and password
+   - Successful login redirects to Home page
+   - Role-based menu appears in sidebar
+   - Logout button at bottom of sidebar
+
 ### For GP Clinicians:
 
-1. **Register** - Navigate to "👨‍⚕️ Register New Doctor"
+1. **Register** - Navigate to "👨‍⚕️ Register New Doctor" (or use login page registration)
    - Fill in: Name, Email, Hospital/Clinic, IC/Passport, MMC Number
    - Role: Select "GP Clinician"
 
@@ -138,15 +159,26 @@ streamlit run app.py
    - Provide: Diagnosis, Recommendations, Additional Notes
    - Submit response (status → "Reviewed")
 
-### Doctor Management:
+### For Admin:
 
-**"👥 Manage Doctors"** - Administrative features
+**"👥 Manage Doctors"** - Full administrative features
 - **Search** doctors by email
 - **Separate sections:**
   - ❤️ Cardiologists (with NSR numbers)
   - 🩺 GP Clinicians
-- **Edit** doctor information
-- **Delete** doctors with confirmation
+- **3-Column Actions per Doctor:**
+  - ✏️ **Edit** - Update doctor information
+  - 🔑 **Reset Password** - Set new password (min 6 characters)
+  - 🗑️ **Delete** - Remove doctor with confirmation
+
+**"👨‍⚕️ Register New Doctor"** - Create new accounts for staff
+
+**Full System Access** - Admin can:
+- View all consultations (not filtered by user)
+- Create consultations on behalf of GPs
+- Respond as Cardiologist
+- Generate reports and statistics
+- Manage all doctors
 
 ### Statistics & Analytics:
 
@@ -161,8 +193,12 @@ streamlit run app.py
 
 ## 🔌 API Endpoints
 
+### Authentication
+- `POST /api/doctors/register` - Register new doctor with password hashing (bcrypt)
+- `POST /api/doctors/login` - Login with email/password authentication
+- `PUT /api/doctors/{email}/password` - Reset/update doctor password (Admin only)
+
 ### Doctors Management
-- `POST /api/doctors/register` - Register new doctor
 - `GET /api/doctors` - Get all doctors
 - `GET /api/doctors/{email}` - Get doctor by email
 - `PUT /api/doctors/{email}` - Update doctor information
@@ -242,10 +278,15 @@ See **TESTING_GUIDE.md** or **GPLink_Cardio_Testing_Guide.pdf** for:
 ## 📝 Recent Updates
 
 ### Latest Changes (Nov 2025):
+- ✅ **Authentication System** - Login/logout with bcrypt password hashing (Python 3.12 compatible)
+- ✅ **Role-Based Access** - GP Clinician, Cardiologist, and Admin roles with separate menus
+- ✅ **Password Reset** - Admin can reset any doctor's password via inline actions
+- ✅ **Forgot Password** - Help text on login page directing users to admin
+- ✅ **Session State** - Persistent authentication across page navigation
 - ✅ Added KPJ Healthcare logo in sidebar
-- ✅ Styled navigation menu with brown theme
+- ✅ Styled navigation menu with brown theme (#9A7D61)
 - ✅ Implemented GP decision system (Complete/Continue)
-- ✅ Added doctor management page with separate sections
+- ✅ Added doctor management page with 3-column actions (Edit/Reset/Delete)
 - ✅ Statistics with donut charts and clickable patient files
 - ✅ Real-time email validation for GP and Cardiologist
 - ✅ Edit consultation with image upload/remove
@@ -253,6 +294,7 @@ See **TESTING_GUIDE.md** or **GPLink_Cardio_Testing_Guide.pdf** for:
 - ✅ Changed IC Number to IC/Passport No throughout
 - ✅ Urgency selectbox with color indicators
 - ✅ Complete consultation with confirmation prompt
+- ✅ Login page branding with "DRAHMADSYAHID © 2025" footer
 
 ## 🚀 Future Enhancements
 

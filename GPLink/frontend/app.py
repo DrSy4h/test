@@ -72,6 +72,16 @@ st.markdown("""
         transform: translateY(-2px);
     }
     
+    /* Sidebar primary button override - use brown theme with guaranteed white text */
+    div[data-testid="stSidebar"] .stButton>button {
+        background-color: #9A7D61 !important;
+        color: white !important;
+    }
+    div[data-testid="stSidebar"] .stButton>button:hover {
+        background-color: #7D6450 !important;
+        color: white !important;
+    }
+    
     /* Success/Info boxes */
     .element-container div[data-testid="stMarkdownContainer"] div[data-testid="stMarkdown"] {
         border-left: 4px solid #9A7D61;
@@ -311,6 +321,187 @@ def generate_referral_letter_pdf(consultation, gp_doctor, referral_reason="", in
 
 # ============= MAIN APP =============
 
+# Initialize session state for authentication
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'user' not in st.session_state:
+    st.session_state.user = None
+
+# ============= LOGIN PAGE =============
+
+if not st.session_state.logged_in:
+    # Custom header
+    st.markdown("""
+    <div class="main-header">
+        <h1>GPLink Cardio™</h1>
+        <p>GP-Cardiologist Consultation Portal | Connecting GP Clinicians with Cardiologists for Better Patient Care</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Sidebar logo
+    st.sidebar.markdown("""
+    <div style="text-align: center; padding: 1rem 0;">
+        <img src="https://bmcc.org.my/cms/images/files/2024/08/KPJ-Logo-1024x213.png" 
+             alt="KPJ Healthcare Logo" 
+             style="max-width: 250px; width: 100%; height: auto;">
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Login form
+    st.markdown("### 🔐 Login")
+    st.markdown("Please login to access GPLink Cardio™")
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("#### Sign In")
+        login_email = st.text_input("Email", key="login_email", placeholder="your.email@hospital.com")
+        login_password = st.text_input("Password", type="password", key="login_password")
+        
+        if st.button("🔓 Login", type="primary", use_container_width=True):
+            if login_email and login_password:
+                try:
+                    response = requests.post(
+                        f"{API_URL}/doctors/login",
+                        json={"email": login_email, "password": login_password}
+                    )
+                    if response.status_code == 200:
+                        result = response.json()
+                        st.session_state.logged_in = True
+                        st.session_state.user = result["user"]
+                        st.success(f"✅ Welcome back, {result['user']['name']}!")
+                        st.rerun()
+                    else:
+                        error_msg = response.json().get("detail", "Login failed")
+                        st.error(f"❌ {error_msg}")
+                except Exception as e:
+                    st.error(f"❌ Error connecting to server: {e}")
+            else:
+                st.warning("⚠️ Please enter both email and password")
+        
+        # Forgot password help
+        st.info("🔑 **Forgot Password?** Contact your Admin to reset your password.")
+    
+    with col2:
+        st.markdown("#### New User?")
+        st.info("""
+        **First time here?**
+        
+        Register as a doctor to access GPLink Cardio™:
+        
+        - **GP Clinicians**: Create consultations, get expert advice
+        - **Cardiologists**: Review cases, provide recommendations
+        
+        Click below to register!
+        """)
+        
+        if st.button("👨‍⚕️ Register New Account", use_container_width=True):
+            st.session_state.show_registration = True
+            st.rerun()
+    
+    # Show registration form if button clicked
+    if 'show_registration' in st.session_state and st.session_state.show_registration:
+        st.markdown("---")
+        st.markdown("### 👨‍⚕️ Register New Doctor")
+        
+        name = st.text_input("Full Name *", help="Full name as per registration")
+        email = st.text_input("Email *", help="Professional email address", key="reg_email")
+        password = st.text_input("Password *", type="password", help="Create a secure password (min 6 characters)", key="reg_password")
+        confirm_password = st.text_input("Confirm Password *", type="password", help="Re-enter your password")
+        role = st.selectbox("Role *", ["GP Clinician", "Cardiologist", "Admin"], help="Select your role")
+        hospital_clinic = st.text_input("Hospital/Clinic Name *", help="Current workplace")
+        ic_passport = st.text_input("IC/Passport Number *", help="National ID or Passport number")
+        mmc_number = st.text_input("MMC Full Registration No. *", help="Malaysian Medical Council registration number")
+        
+        # NSR number - compulsory for cardiologists
+        nsr_number = ""
+        if role == "Cardiologist":
+            nsr_number = st.text_input("NSR No. * (Compulsory for Cardiologists)", help="National Specialist Register number")
+        
+        col_reg1, col_reg2 = st.columns(2)
+        with col_reg1:
+            if st.button("✅ Register", type="primary", use_container_width=True):
+                # Validation
+                if password != confirm_password:
+                    st.error("❌ Passwords do not match!")
+                elif len(password) < 6:
+                    st.error("❌ Password must be at least 6 characters long!")
+                else:
+                    if role == "Cardiologist":
+                        all_filled = name and email and password and hospital_clinic and ic_passport and mmc_number and nsr_number
+                        if not nsr_number:
+                            st.error("❌ NSR No. is compulsory for Cardiologists!")
+                    else:
+                        all_filled = name and email and password and hospital_clinic and ic_passport and mmc_number
+                    
+                    if all_filled:
+                        try:
+                            if role == "GP Clinician":
+                                role_backend = "clinic_doctor"
+                            elif role == "Cardiologist":
+                                role_backend = "cardiologist"
+                            else:
+                                role_backend = "admin"
+                            doctor_data = {
+                                "name": name,
+                                "email": email,
+                                "password": password,
+                                "role": role_backend,
+                                "hospital_clinic": hospital_clinic,
+                                "ic_passport": ic_passport,
+                                "mmc_number": mmc_number,
+                                "nsr_number": nsr_number if role == "Cardiologist" else None
+                            }
+                            
+                            response = requests.post(f"{API_URL}/doctors/register", json=doctor_data)
+                            if response.status_code == 200:
+                                st.success("✅ Registration successful! Please login with your credentials.")
+                                del st.session_state.show_registration
+                                st.rerun()
+                            elif response.status_code == 409:
+                                # Duplicate email - set password
+                                st.warning(f"⚠️ Email {email} already exists!")
+                                st.info("💡 Setting password...")
+                                
+                                password_response = requests.put(
+                                    f"{API_URL}/doctors/{email}/password",
+                                    json={"password": password}
+                                )
+                                
+                                if password_response.status_code == 200:
+                                    st.success(f"✅ Password set! You can now login.")
+                                    del st.session_state.show_registration
+                                    st.rerun()
+                                else:
+                                    st.error(f"❌ Failed to set password")
+                            else:
+                                error_detail = response.json().get('detail', 'Registration failed')
+                                st.error(f"❌ {error_detail}")
+                        except requests.exceptions.RequestException as req_err:
+                            st.error(f"❌ Connection Error: {req_err}")
+                            st.info("💡 Make sure backend is running on http://localhost:8000")
+                        except Exception as e:
+                            st.error(f"❌ Error: {type(e).__name__}: {str(e)}")
+                    else:
+                        st.warning("⚠️ Please fill in all required fields (marked with *)")
+        
+        with col_reg2:
+            if st.button("← Back to Login", use_container_width=True):
+                del st.session_state.show_registration
+                st.rerun()
+    
+    # Footer
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; padding: 1.5rem 0; color: #9A7D61;">
+        <p style="font-size: 1rem; font-weight: 600; margin: 0;">DRAHMADSYAHID © 2025</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.stop()
+
+# ============= LOGGED IN - MAIN APP =============
+
 # Custom header with theme color
 st.markdown("""
 <div class="main-header">
@@ -329,14 +520,82 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# User info in sidebar
+st.sidebar.markdown(f"### 👤 {st.session_state.user['name']}")
+if st.session_state.user['role'] == 'clinic_doctor':
+    role_display = "GP Clinician"
+elif st.session_state.user['role'] == 'cardiologist':
+    role_display = "Cardiologist"
+else:
+    role_display = "Admin"
+st.sidebar.markdown(f"**Role:** {role_display}")
+st.sidebar.markdown(f"**Hospital:** {st.session_state.user['hospital_clinic']}")
+
+st.sidebar.markdown("---")
 st.sidebar.markdown("### 📋 Navigation Menu")
+
+# Role-based navigation with notification counters
+user_role = st.session_state.user['role']
+user_email = st.session_state.user['email']
+
+# Get notification counts
+try:
+    all_consultations = get_consultations(None)  # Get all consultations
+    
+    if user_role == 'clinic_doctor':
+        # Count reviewed/completed consultations for this GP
+        my_consultations = [c for c in all_consultations if c['clinic_doctor_email'] == user_email]
+        new_responses = len([c for c in my_consultations if c['status'] in ['reviewed', 'completed']])
+        responses_badge = f" ({new_responses})" if new_responses > 0 else ""
+    elif user_role == 'cardiologist':
+        # Count pending consultations assigned to this cardiologist or unassigned
+        pending_for_me = len([c for c in all_consultations if c['status'] == 'pending'])
+        pending_badge = f" ({pending_for_me})" if pending_for_me > 0 else ""
+except:
+    responses_badge = ""
+    pending_badge = ""
+
+if user_role == 'clinic_doctor':
+    # GP Clinician menu
+    navigation_options = [
+        "🏠 Home",
+        "➕ New Consultation",
+        f"📋 View My Consultations{responses_badge}",
+        "📊 My Statistics"
+    ]
+elif user_role == 'cardiologist':
+    # Cardiologist menu
+    navigation_options = [
+        "🏠 Home",
+        f"💬 Respond to Consultation{pending_badge}",
+        "📋 View My Responses",
+        "📊 My Statistics"
+    ]
+elif user_role == 'admin':
+    # Admin menu - full access
+    navigation_options = [
+        "🏠 Home",
+        "👨‍⚕️ Register New Doctor",
+        "👥 Manage Doctors",
+        "➕ New Consultation",
+        "💬 Respond to Consultation",
+        "📋 View Consultations",
+        "📊 Statistics"
+    ]
+else:
+    # Fallback menu
+    navigation_options = ["🏠 Home"]
 
 # Navigation with radio buttons
 page = st.sidebar.radio(
     "",
-    ["🏠 Home", "👨‍⚕️ Register New Doctor", "👥 Manage Doctors", "➕ New Consultation", "💬 Respond to Consultation", "📋 View Consultations", "📊 Statistics"],
+    navigation_options,
     label_visibility="collapsed"
 )
+
+# Normalize page name (remove notification badges)
+import re
+page_clean = re.sub(r'\s*\(\d+\)$', '', page)  # Remove (number) at end
 
 # Custom CSS for navigation styling
 st.sidebar.markdown("""
@@ -361,9 +620,35 @@ div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
 </style>
 """, unsafe_allow_html=True)
 
+st.sidebar.markdown("---")
+
+# Logout button with HTML
+logout_clicked = st.sidebar.button("LOGOUT", use_container_width=True, key="logout_btn")
+st.sidebar.markdown("""
+<style>
+button[kind="secondary"] {
+    background-color: #9A7D61 !important;
+    color: white !important;
+    border: none !important;
+    font-weight: bold !important;
+}
+button[kind="secondary"]:hover {
+    background-color: #7D6450 !important;
+}
+button[kind="secondary"] p {
+    color: white !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+if logout_clicked:
+    st.session_state.logged_in = False
+    st.session_state.user = None
+    st.rerun()
+
 # ============= HOME PAGE =============
 
-if page == "🏠 Home":
+if page_clean == "🏠 Home":
     st.header("Welcome to GPLink!")
     st.markdown("""
     ### About GPLink Cardio™
@@ -419,45 +704,101 @@ if page == "🏠 Home":
 
 # ============= REGISTER DOCTOR =============
 
-elif page == "👨‍⚕️ Register New Doctor":
+elif page_clean == "👨‍⚕️ Register New Doctor":
     st.header("Register New Doctor")
     
-    name = st.text_input("Full Name *", help="Full name as per registration")
-    email = st.text_input("Email *", help="Professional email address")
-    role = st.selectbox("Role *", ["GP Clinician", "Cardiologist"], help="Select your role")
-    hospital_clinic = st.text_input("Hospital/Clinic Name *", help="Current workplace")
-    ic_passport = st.text_input("IC/Passport Number *", help="National ID or Passport number")
-    mmc_number = st.text_input("MMC Full Registration No. *", help="Malaysian Medical Council registration number")
+    name = st.text_input("Full Name *", key="reg_name", help="Full name as per registration")
+    email = st.text_input("Email *", key="reg_email", help="Professional email address")
+    password = st.text_input("Password *", key="reg_password", type="password", help="Create a secure password")
+    confirm_password = st.text_input("Confirm Password *", key="reg_confirm_password", type="password", help="Re-enter your password")
+    role = st.selectbox("Role *", ["GP Clinician", "Cardiologist", "Admin"], key="reg_role", help="Select your role")
+    hospital_clinic = st.text_input("Hospital/Clinic Name *", key="reg_hospital", help="Current workplace")
+    ic_passport = st.text_input("IC/Passport Number *", key="reg_ic", help="National ID or Passport number")
+    mmc_number = st.text_input("MMC Full Registration No. *", key="reg_mmc", help="Malaysian Medical Council registration number")
     
     # NSR number - compulsory for cardiologists, appears dynamically
     nsr_number = ""
     if role == "Cardiologist":
-        nsr_number = st.text_input("NSR No. * (Compulsory for Cardiologists)", help="National Specialist Register number - Required for Cardiologists")
+        nsr_number = st.text_input("NSR No. * (Compulsory for Cardiologists)", key="reg_nsr", help="National Specialist Register number - Required for Cardiologists")
     
     if st.button("Register", type="primary"):
-        # Validate all required fields
-        if role == "Cardiologist":
-            all_filled = name and email and hospital_clinic and ic_passport and mmc_number and nsr_number
-            if not nsr_number:
-                st.error("❌ NSR No. is compulsory for Cardiologists!")
+        # Validate passwords match
+        if password != confirm_password:
+            st.error("❌ Passwords do not match!")
+        elif len(password) < 6:
+            st.error("❌ Password must be at least 6 characters long!")
         else:
-            all_filled = name and email and hospital_clinic and ic_passport and mmc_number
-        
-        if all_filled:
-            try:
+            # Validate all required fields with better checking
+            missing_fields = []
+            if not name.strip(): missing_fields.append("Full Name")
+            if not email.strip(): missing_fields.append("Email")
+            if not password: missing_fields.append("Password")
+            if not hospital_clinic.strip(): missing_fields.append("Hospital/Clinic Name")
+            if not ic_passport.strip(): missing_fields.append("IC/Passport Number")
+            if not mmc_number.strip(): missing_fields.append("MMC Full Registration No.")
+            
+            # NSR required for Cardiologist
+            if role == "Cardiologist" and not nsr_number.strip():
+                missing_fields.append("NSR No.")
+            
+            if missing_fields:
+                st.warning(f"⚠️ Please fill in: {', '.join(missing_fields)}")
+            else:
                 # Convert role display to backend format
-                role_backend = "clinic_doctor" if role == "GP Clinician" else "cardiologist"
-                result = register_doctor(name, email, role_backend, hospital_clinic, ic_passport, mmc_number, nsr_number if role == "Cardiologist" else None)
-                st.success(f"✅ Doctor registered successfully!")
-                st.json(result)
-            except Exception as e:
-                st.error(f"❌ Error: {e}")
-        else:
-            st.warning("⚠️ Please fill in all required fields (marked with *)")
+                if role == "GP Clinician":
+                    role_backend = "clinic_doctor"
+                elif role == "Cardiologist":
+                    role_backend = "cardiologist"
+                else:
+                    role_backend = "admin"
+                
+                # Prepare doctor data
+                doctor_data = {
+                    "name": name,
+                    "email": email,
+                    "password": password,
+                    "role": role_backend,
+                    "hospital_clinic": hospital_clinic,
+                    "ic_passport": ic_passport,
+                    "mmc_number": mmc_number,
+                    "nsr_number": nsr_number if role == "Cardiologist" else None
+                }
+                
+                try:
+                    response = requests.post(f"{API_URL}/doctors/register", json=doctor_data)
+                    
+                    # Debug
+                    st.write(f"DEBUG: Status Code = {response.status_code}")
+                    st.write(f"DEBUG: Response = {response.text}")
+                    
+                    if response.status_code == 200:
+                        st.success(f"✅ Doctor registered successfully!")
+                        st.json(response.json())
+                    elif response.status_code == 409:
+                        # Duplicate email - set password instead
+                        st.warning(f"⚠️ Email {email} already exists in database!")
+                        st.info("💡 Setting password for existing user...")
+                        
+                        password_response = requests.put(
+                            f"{API_URL}/doctors/{email}/password",
+                            json={"password": password}
+                        )
+                        
+                        if password_response.status_code == 200:
+                            st.success(f"✅ Password set successfully for {email}! You can now login.")
+                        else:
+                            st.error(f"❌ Failed to set password: {password_response.json().get('detail', 'Unknown error')}")
+                    else:
+                        error_detail = response.json().get('detail', 'Registration failed')
+                        st.error(f"❌ Unexpected error (Status {response.status_code}): {error_detail}")
+                except Exception as e:
+                    st.error(f"❌ Exception: {type(e).__name__}: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
 
 # ============= MANAGE DOCTORS =============
 
-elif page == "👥 Manage Doctors":
+elif page_clean == "👥 Manage Doctors":
     st.header("Manage Doctors")
     
     try:
@@ -502,7 +843,7 @@ elif page == "👥 Manage Doctors":
                         st.markdown("---")
                         
                         # Action buttons
-                        col1, col2 = st.columns([1, 1])
+                        col1, col2, col3 = st.columns([1, 1, 1])
                         
                         with col1:
                             # Edit button
@@ -515,6 +856,16 @@ elif page == "👥 Manage Doctors":
                                 st.rerun()
                         
                         with col2:
+                            # Reset Password button
+                            reset_key = f"reset_{doctor['email']}"
+                            if reset_key not in st.session_state:
+                                st.session_state[reset_key] = False
+                            
+                            if st.button("🔑 Reset Password", key=f"btn_reset_{doctor['email']}", use_container_width=True):
+                                st.session_state[reset_key] = not st.session_state[reset_key]
+                                st.rerun()
+                        
+                        with col3:
                             # Delete button
                             delete_key = f"delete_doctor_{doctor['email']}"
                             if delete_key not in st.session_state:
@@ -540,6 +891,39 @@ elif page == "👥 Manage Doctors":
                                     if st.button("❌ No", key=f"cancel_delete_{doctor['email']}"):
                                         st.session_state[delete_key] = False
                                         st.rerun()
+                        
+                        # Reset Password Form
+                        if st.session_state.get(reset_key, False):
+                            st.markdown("---")
+                            st.markdown("##### 🔑 Reset Password")
+                            new_pwd = st.text_input("New Password", type="password", key=f"new_pwd_c_{doctor['email']}")
+                            confirm_pwd = st.text_input("Confirm Password", type="password", key=f"confirm_pwd_c_{doctor['email']}")
+                            
+                            col_r1, col_r2 = st.columns(2)
+                            with col_r1:
+                                if st.button("✅ Update", key=f"submit_reset_c_{doctor['email']}", use_container_width=True):
+                                    if new_pwd != confirm_pwd:
+                                        st.error("❌ Passwords do not match!")
+                                    elif len(new_pwd) < 6:
+                                        st.error("❌ Password must be at least 6 characters!")
+                                    else:
+                                        try:
+                                            response = requests.put(
+                                                f"{API_URL}/doctors/{doctor['email']}/password",
+                                                json={"password": new_pwd}
+                                            )
+                                            if response.status_code == 200:
+                                                st.success(f"✅ Password updated!")
+                                                st.session_state[reset_key] = False
+                                                st.rerun()
+                                            else:
+                                                st.error("❌ Failed")
+                                        except Exception as e:
+                                            st.error(f"❌ Error: {e}")
+                            with col_r2:
+                                if st.button("❌ Cancel", key=f"cancel_reset_c_{doctor['email']}", use_container_width=True):
+                                    st.session_state[reset_key] = False
+                                    st.rerun()
                         
                         # Edit form
                         if st.session_state.get(edit_key, False):
@@ -604,7 +988,7 @@ elif page == "👥 Manage Doctors":
                         st.markdown("---")
                         
                         # Action buttons
-                        col1, col2 = st.columns([1, 1])
+                        col1, col2, col3 = st.columns([1, 1, 1])
                         
                         with col1:
                             # Edit button
@@ -617,6 +1001,16 @@ elif page == "👥 Manage Doctors":
                                 st.rerun()
                         
                         with col2:
+                            # Reset Password button
+                            reset_key = f"reset_{doctor['email']}"
+                            if reset_key not in st.session_state:
+                                st.session_state[reset_key] = False
+                            
+                            if st.button("🔑 Reset Password", key=f"btn_reset_{doctor['email']}", use_container_width=True):
+                                st.session_state[reset_key] = not st.session_state[reset_key]
+                                st.rerun()
+                        
+                        with col3:
                             # Delete button
                             delete_key = f"delete_doctor_{doctor['email']}"
                             if delete_key not in st.session_state:
@@ -642,6 +1036,39 @@ elif page == "👥 Manage Doctors":
                                     if st.button("❌ No", key=f"cancel_delete_{doctor['email']}"):
                                         st.session_state[delete_key] = False
                                         st.rerun()
+                        
+                        # Reset Password Form
+                        if st.session_state.get(reset_key, False):
+                            st.markdown("---")
+                            st.markdown("##### 🔑 Reset Password")
+                            new_pwd = st.text_input("New Password", type="password", key=f"new_pwd_gp_{doctor['email']}")
+                            confirm_pwd = st.text_input("Confirm Password", type="password", key=f"confirm_pwd_gp_{doctor['email']}")
+                            
+                            col_r1, col_r2 = st.columns(2)
+                            with col_r1:
+                                if st.button("✅ Update", key=f"submit_reset_gp_{doctor['email']}", use_container_width=True):
+                                    if new_pwd != confirm_pwd:
+                                        st.error("❌ Passwords do not match!")
+                                    elif len(new_pwd) < 6:
+                                        st.error("❌ Password must be at least 6 characters!")
+                                    else:
+                                        try:
+                                            response = requests.put(
+                                                f"{API_URL}/doctors/{doctor['email']}/password",
+                                                json={"password": new_pwd}
+                                            )
+                                            if response.status_code == 200:
+                                                st.success(f"✅ Password updated!")
+                                                st.session_state[reset_key] = False
+                                                st.rerun()
+                                            else:
+                                                st.error("❌ Failed")
+                                        except Exception as e:
+                                            st.error(f"❌ Error: {e}")
+                            with col_r2:
+                                if st.button("❌ Cancel", key=f"cancel_reset_gp_{doctor['email']}", use_container_width=True):
+                                    st.session_state[reset_key] = False
+                                    st.rerun()
                         
                         # Edit form
                         if st.session_state.get(edit_key, False):
@@ -685,31 +1112,20 @@ elif page == "👥 Manage Doctors":
 
 # ============= NEW CONSULTATION =============
 
-elif page == "➕ New Consultation":
+elif page_clean == "➕ New Consultation":
     st.header("Create New Consultation Request")
     
-    # Email validation outside form for immediate feedback
-    st.subheader("GP Clinician Information")
-    clinic_doctor_email = st.text_input("Your Email (GP Clinician)", key="gp_email_input")
+    # Auto-use logged-in user's email
+    clinic_doctor_email = st.session_state.user['email']
+    user_role = st.session_state.user['role']
     
-    # Validate GP email in real-time
-    gp_valid = False
-    if clinic_doctor_email:
-        try:
-            doctor_check = requests.get(f"{API_URL}/doctors/{clinic_doctor_email}")
-            if doctor_check.status_code != 200:
-                st.error(f"❌ Email '{clinic_doctor_email}' not registered. Please register first.")
-                st.info("💡 Go to 'Register New Doctor' page to register as GP Clinician.")
-            else:
-                doctor = doctor_check.json()
-                if doctor.get('role') != 'clinic_doctor':
-                    role_display = "Cardiologist" if doctor.get('role') == 'cardiologist' else doctor.get('role', 'Unknown')
-                    st.error(f"❌ This email is registered as {role_display}. Only GP Clinicians can create consultations.")
-                else:
-                    st.success(f"✅ Verified: {doctor.get('name')} (GP Clinician)")
-                    gp_valid = True
-        except Exception as e:
-            st.warning(f"⚠️ Unable to validate email: {e}")
+    # Show GP info
+    st.info(f"**Creating consultation as:** {st.session_state.user['name']} ({clinic_doctor_email})")
+    
+    # Only GP Clinicians and Admin can create consultations
+    if user_role not in ['clinic_doctor', 'admin']:
+        st.error("❌ Only GP Clinicians and Administrators can create consultations.")
+        st.stop()
     
     with st.form("consultation_form"):
         st.subheader("Patient Information")
@@ -745,15 +1161,14 @@ elif page == "➕ New Consultation":
         urgency = st.selectbox(
             "Urgency Level",
             options=["normal", "urgent", "emergency"],
-            format_func=lambda x: {"normal": "🟢 Normal", "urgent": "🟡 Urgent", "emergency": "🔴 Emergency"}[x]
+            format_func=lambda x: {"normal": "🟢 Normal", "urgent": "🟡 Urgent", "emergency": "🔴 Emergency"}[x],
+            help="Normal: Non-urgent case; Urgent: Requires attention within 24-48 hours; Emergency: Immediate attention required"
         )
         
         submit = st.form_submit_button("Submit Consultation Request")
         
         if submit:
-            if not gp_valid:
-                st.error("❌ Please enter a valid GP Clinician email before submitting.")
-            elif clinic_doctor_email and patient_name and symptoms:
+            if patient_name and symptoms:
                 # Proceed with consultation creation
                 try:
                     patient_data = {
@@ -811,13 +1226,36 @@ elif page == "➕ New Consultation":
 
 # ============= VIEW CONSULTATIONS =============
 
-elif page == "📋 View Consultations":
-    st.header("View Consultations")
+elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My Responses":
+    user_email = st.session_state.user['email']
+    user_role = st.session_state.user['role']
     
-    status_filter = st.selectbox("Filter by Status", ["All", "pending", "reviewed", "completed"])
+    if page_clean == "📋 View My Consultations":
+        st.header("My Consultations")
+        st.markdown(f"**GP Clinician:** {st.session_state.user['name']}")
+    else:
+        st.header("My Responses")
+        st.markdown(f"**Cardiologist:** {st.session_state.user['name']}")
+    
+    status_filter = st.selectbox("Filter by Status", ["All", "Pending", "Reviewed", "Completed"])
+    # Map display values back to API values
+    status_map = {"All": None, "Pending": "pending", "Reviewed": "reviewed", "Completed": "completed"}
+    status_value = status_map[status_filter]
     
     try:
-        consultations = get_consultations(status_filter if status_filter != "All" else None)
+        # Get all consultations
+        all_consultations = get_consultations(status_value)
+        
+        # Filter by user (admin sees all)
+        if user_role == 'admin':
+            # Admin sees all consultations
+            consultations = all_consultations
+        elif user_role == 'clinic_doctor':
+            # GP sees only consultations they created
+            consultations = [c for c in all_consultations if c['clinic_doctor_email'] == user_email]
+        else:  # cardiologist
+            # Cardiologist sees only consultations they responded to
+            consultations = [c for c in all_consultations if c.get('cardiologist_email') == user_email]
         
         if consultations:
             # Initialize session state for selected consultations
@@ -1232,30 +1670,20 @@ elif page == "📋 View Consultations":
 
 # ============= RESPOND TO CONSULTATION =============
 
-elif page == "💬 Respond to Consultation":
+elif page_clean == "💬 Respond to Consultation":
     st.header("Respond to Consultation (Cardiologist)")
     
-    # Email validation outside form for immediate feedback
-    cardiologist_email = st.text_input("Your Email (Cardiologist)", key="cardio_email_input")
+    # Auto-use logged-in user's email
+    cardiologist_email = st.session_state.user['email']
+    user_role = st.session_state.user['role']
     
-    # Validate Cardiologist email in real-time
-    cardio_valid = False
-    if cardiologist_email:
-        try:
-            doctor_check = requests.get(f"{API_URL}/doctors/{cardiologist_email}")
-            if doctor_check.status_code != 200:
-                st.error(f"❌ Email '{cardiologist_email}' not registered. Please register first.")
-                st.info("💡 Go to 'Register New Doctor' page to register as Cardiologist.")
-            else:
-                doctor = doctor_check.json()
-                if doctor.get('role') != 'cardiologist':
-                    role_display = "GP Clinician" if doctor.get('role') == 'clinic_doctor' else doctor.get('role', 'Unknown')
-                    st.error(f"❌ This email is registered as {role_display}. Only Cardiologists can respond to consultations.")
-                else:
-                    st.success(f"✅ Verified: {doctor.get('name')} (Cardiologist)")
-                    cardio_valid = True
-        except Exception as e:
-            st.warning(f"⚠️ Unable to validate email: {e}")
+    # Show Cardiologist info
+    st.info(f"**Responding as:** {st.session_state.user['name']} ({cardiologist_email})")
+    
+    # Only Cardiologists and Admin can respond
+    if user_role not in ['cardiologist', 'admin']:
+        st.error("❌ Only Cardiologists and Administrators can respond to consultations.")
+        st.stop()
     
     try:
         pending_consultations = get_consultations("pending")
@@ -1290,9 +1718,7 @@ elif page == "💬 Respond to Consultation":
                     submit = st.form_submit_button("Submit Response")
                     
                     if submit:
-                        if not cardio_valid:
-                            st.error("❌ Please enter a valid Cardiologist email before submitting.")
-                        elif cardiologist_email and diagnosis and recommendations:
+                        if diagnosis and recommendations:
                             # Proceed with response submission
                             try:
                                 result = respond_to_consultation(
@@ -1315,22 +1741,54 @@ elif page == "💬 Respond to Consultation":
 
 # ============= STATISTICS =============
 
-elif page == "📊 Statistics":
-    st.header("System Statistics")
+elif page_clean == "📊 Statistics" or page_clean == "📊 My Statistics":
+    user_email = st.session_state.user['email']
+    user_role = st.session_state.user['role']
+    
+    if page == "📊 My Statistics":
+        st.header("My Statistics")
+        if user_role == 'clinic_doctor':
+            st.markdown(f"**GP Clinician:** {st.session_state.user['name']}")
+        else:
+            st.markdown(f"**Cardiologist:** {st.session_state.user['name']}")
+    else:
+        st.header("System Statistics")
     
     try:
         stats = get_stats()
+        all_consultations = get_consultations()
+        
+        # Filter consultations by user if not admin
+        if page == "📊 My Statistics":
+            if user_role == 'clinic_doctor':
+                my_consultations = [c for c in all_consultations if c['clinic_doctor_email'] == user_email]
+            else:  # cardiologist
+                my_consultations = [c for c in all_consultations if c.get('cardiologist_email') == user_email]
+            
+            # Calculate user-specific stats
+            total_consultations = len(my_consultations)
+            pending = len([c for c in my_consultations if c['status'] == 'pending'])
+            reviewed = len([c for c in my_consultations if c['status'] == 'reviewed'])
+            completed = len([c for c in my_consultations if c['status'] == 'completed'])
+        else:
+            # Admin or full statistics page sees all stats
+            my_consultations = all_consultations
+            total_consultations = stats["total_consultations"]
+            pending = stats["pending"]
+            reviewed = stats["reviewed"]
+            completed = stats["completed"]
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.metric("Total Consultations", stats["total_consultations"])
-            st.metric("Total Doctors", stats["total_doctors"])
+            st.metric("Total Consultations", total_consultations)
+            if page == "📊 Statistics":
+                st.metric("Total Doctors", stats["total_doctors"])
         
         with col2:
-            st.metric("Pending Consultations", stats["pending"])
-            st.metric("Reviewed Consultations", stats["reviewed"])
-            st.metric("Completed Consultations", stats["completed"])
+            st.metric("Pending Consultations", pending)
+            st.metric("Reviewed Consultations", reviewed)
+            st.metric("Completed Consultations", completed)
         
         st.markdown("---")
         
@@ -1345,7 +1803,7 @@ elif page == "📊 Statistics":
             # Donut chart for consultation status
             fig = go.Figure(data=[go.Pie(
                 labels=['Pending', 'Reviewed', 'Completed'],
-                values=[stats["pending"], stats["reviewed"], stats["completed"]],
+                values=[pending, reviewed, completed],
                 hole=.5,
                 marker_colors=['#FFA500', '#4169E1', '#32CD32']
             )])
@@ -1359,23 +1817,17 @@ elif page == "📊 Statistics":
         with col2:
             st.subheader("Statistics Table")
             # Data table
-            table_data = pd.DataFrame({
-                'Variable': ['Total Consultations', 'Pending', 'Reviewed', 'Completed', 'Total Doctors'],
-                'Count': [
-                    stats["total_consultations"],
-                    stats["pending"],
-                    stats["reviewed"],
-                    stats["completed"],
-                    stats["total_doctors"]
-                ],
-                'Percentage': [
-                    '100%',
-                    f"{(stats['pending']/stats['total_consultations']*100):.1f}%" if stats['total_consultations'] > 0 else '0%',
-                    f"{(stats['reviewed']/stats['total_consultations']*100):.1f}%" if stats['total_consultations'] > 0 else '0%',
-                    f"{(stats['completed']/stats['total_consultations']*100):.1f}%" if stats['total_consultations'] > 0 else '0%',
-                    'N/A'
-                ]
-            })
+            table_rows = [
+                {'Variable': 'Total Consultations', 'Count': total_consultations, 'Percentage': '100%'},
+                {'Variable': 'Pending', 'Count': pending, 'Percentage': f"{(pending/total_consultations*100):.1f}%" if total_consultations > 0 else '0%'},
+                {'Variable': 'Reviewed', 'Count': reviewed, 'Percentage': f"{(reviewed/total_consultations*100):.1f}%" if total_consultations > 0 else '0%'},
+                {'Variable': 'Completed', 'Count': completed, 'Percentage': f"{(completed/total_consultations*100):.1f}%" if total_consultations > 0 else '0%'},
+            ]
+            
+            if page == "📊 Statistics":
+                table_rows.append({'Variable': 'Total Doctors', 'Count': stats["total_doctors"], 'Percentage': 'N/A'})
+            
+            table_data = pd.DataFrame(table_rows)
             st.dataframe(table_data, use_container_width=True, hide_index=True)
         
         # Patient File Reference Table
@@ -1383,12 +1835,10 @@ elif page == "📊 Statistics":
         st.subheader("Patient File References")
         
         try:
-            # Get all consultations to show patient references
-            all_consultations = get_consultations()
-            if all_consultations:
+            if my_consultations:
                 st.write("Click on Consultation ID to view patient details:")
                 
-                for consult in all_consultations:
+                for consult in my_consultations:
                     col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
                     
                     with col1:

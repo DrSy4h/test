@@ -46,7 +46,7 @@ def get_file_path(filename: str) -> Path:
 def create_doctor(doctor: Doctor):
     """Register a new doctor"""
     try:
-        doctor_dict = doctor.dict()
+        doctor_dict = doctor.model_dump()
         result = doctors_collection.insert_one(doctor_dict)
         return {"success": True, "doctor_id": str(result.inserted_id)}
     except Exception as e:
