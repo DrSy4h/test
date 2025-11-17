@@ -1203,12 +1203,16 @@ elif page_clean == "➕ New Consultation":
     col1, col2 = st.columns(2)
     with col1:
         ecg_file = st.file_uploader("Upload ECG Image", type=["jpg", "jpeg", "png", "pdf"], key="ecg_uploader")
-        if ecg_file:
+        if ecg_file and ecg_file.type.startswith('image/'):
             st.image(ecg_file, caption="ECG Preview", use_column_width=True)
+        elif ecg_file:
+            st.info(f"📄 {ecg_file.name} uploaded (PDF preview not available)")
     with col2:
         xray_file = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"], key="xray_uploader")
-        if xray_file:
+        if xray_file and xray_file.type.startswith('image/'):
             st.image(xray_file, caption="X-Ray Preview", use_column_width=True)
+        elif xray_file:
+            st.info(f"📄 {xray_file.name} uploaded (PDF preview not available)")
     
     st.markdown("---")
     
