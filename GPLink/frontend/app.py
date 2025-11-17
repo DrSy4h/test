@@ -1416,11 +1416,57 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My R
                             st.markdown("**📊 ECG Image:**")
                             st.image(f"http://localhost:8000/uploads/{consult['patient']['ecg_image']}", 
                                    caption="ECG", width=400)
+                            
+                            # AI Analysis button
+                            col_btn1, col_btn2 = st.columns([1, 3])
+                            with col_btn1:
+                                if st.button("🤖 AI Analyze", key=f"analyze_ecg_{consult['_id']}"):
+                                    with st.spinner("🔄 Analyzing ECG..."):
+                                        try:
+                                            response = requests.post(
+                                                f"{API_URL}/consultations/{consult['_id']}/analyze-image",
+                                                params={"image_type": "ecg"}
+                                            )
+                                            if response.status_code == 200:
+                                                result = response.json()
+                                                st.success("✅ Analysis complete!")
+                                                st.rerun()
+                                            else:
+                                                st.error(f"❌ {response.json().get('detail', 'Error')}")
+                                        except Exception as e:
+                                            st.error(f"❌ Error: {e}")
+                            
+                            # Display existing analysis if available
+                            if consult.get('ecg_analysis'):
+                                st.info(f"**📋 AI Analysis:**\n\n{consult['ecg_analysis']}")
                         
                         if consult['patient'].get('xray_image'):
                             st.markdown("**🩻 X-Ray Image:**")
                             st.image(f"http://localhost:8000/uploads/{consult['patient']['xray_image']}", 
                                    caption="X-Ray", width=400)
+                            
+                            # AI Analysis button
+                            col_btn1, col_btn2 = st.columns([1, 3])
+                            with col_btn1:
+                                if st.button("🤖 AI Analyze", key=f"analyze_xray_{consult['_id']}"):
+                                    with st.spinner("🔄 Analyzing X-Ray..."):
+                                        try:
+                                            response = requests.post(
+                                                f"{API_URL}/consultations/{consult['_id']}/analyze-image",
+                                                params={"image_type": "xray"}
+                                            )
+                                            if response.status_code == 200:
+                                                result = response.json()
+                                                st.success("✅ Analysis complete!")
+                                                st.rerun()
+                                            else:
+                                                st.error(f"❌ {response.json().get('detail', 'Error')}")
+                                        except Exception as e:
+                                            st.error(f"❌ Error: {e}")
+                            
+                            # Display existing analysis if available
+                            if consult.get('xray_analysis'):
+                                st.info(f"**📋 AI Analysis:**\n\n{consult['xray_analysis']}")
                         
                         st.markdown("**Clinic Doctor:**")
                         st.write(f"{consult['clinic_doctor_name']}")
