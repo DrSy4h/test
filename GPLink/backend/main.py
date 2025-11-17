@@ -134,17 +134,17 @@ def set_doctor_password(email: str, password_data: dict):
         {"$set": {"password": hashed_password}}
     )
     
-    if result.modified_count > 0:
-        return {"message": "Password set successfully"}
+    if result.matched_count > 0:
+        return {"success": True, "message": "Password set successfully"}
     else:
-        return {"message": "Password already set or no changes made"}
+        return {"success": False, "message": "Password already set or no changes made"}
 
 @app.put("/api/doctors/{email}", tags=["Doctors"])
 def update_doctor(email: str, doctor: Doctor):
     """Update doctor information"""
     result = crud.update_doctor(email, doctor)
     if result["success"]:
-        return {"message": result["message"]}
+        return {"success": True, "message": result["message"]}
     else:
         raise HTTPException(status_code=404, detail=result["error"])
 
