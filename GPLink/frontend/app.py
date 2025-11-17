@@ -175,7 +175,9 @@ def delete_doctor(email):
     response = requests.delete(f"{API_URL}/doctors/{email}")
     return response.json()
 
-def create_consultation(patient_data, symptoms, vital_signs, clinic_doctor_email, urgency, assigned_cardiologist_email=None, lab_investigations=None):
+def create_consultation(patient_data, symptoms, vital_signs, clinic_doctor_email, urgency, 
+                        assigned_cardiologist_email=None, lab_investigations=None, 
+                        lab_remarks=None, image_remarks=None, provisional_diagnosis=None):
     """Create new consultation"""
     payload = {
         "patient": patient_data,
@@ -184,7 +186,10 @@ def create_consultation(patient_data, symptoms, vital_signs, clinic_doctor_email
         "clinic_doctor_email": clinic_doctor_email,
         "urgency": urgency,
         "assigned_cardiologist_email": assigned_cardiologist_email,
-        "lab_investigations": lab_investigations or []
+        "lab_investigations": lab_investigations or [],
+        "lab_remarks": lab_remarks,
+        "image_remarks": image_remarks,
+        "provisional_diagnosis": provisional_diagnosis
     }
     response = requests.post(
         f"{API_URL}/consultations?clinic_doctor_email={clinic_doctor_email}",
@@ -1189,6 +1194,13 @@ elif page_clean == "➕ New Consultation":
             help="Enter each test on a new line"
         )
         
+        lab_remarks = st.text_area(
+            "Remarks on Lab Results (Optional)",
+            height=80,
+            placeholder="e.g., Patient fasting for lipid profile. Troponin slightly elevated, repeat in 3 hours recommended.",
+            help="Add any important notes about the lab investigations"
+        )
+        
         st.markdown("---")
         
         st.subheader("📎 Medical Images (Optional)")
@@ -1201,6 +1213,23 @@ elif page_clean == "➕ New Consultation":
             xray_file = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"])
             if xray_file:
                 st.image(xray_file, caption="X-Ray Preview", use_container_width=True)
+        
+        image_remarks = st.text_area(
+            "Remarks on Images (Optional)",
+            height=80,
+            placeholder="e.g., ECG shows possible ST elevation in leads II, III, aVF. X-Ray taken in PA view, patient cooperative.",
+            help="Add any important observations or context about the medical images"
+        )
+        
+        st.markdown("---")
+        
+        st.subheader("🩺 Provisional Diagnosis")
+        provisional_diagnosis = st.text_area(
+            "Your Provisional Diagnosis",
+            height=100,
+            placeholder="e.g., Suspected acute coronary syndrome with possible inferior STEMI. Patient presenting with typical cardiac chest pain and risk factors.",
+            help="Enter your initial clinical diagnosis based on the assessment"
+        )
         
         st.markdown("---")
         
@@ -1278,7 +1307,10 @@ elif page_clean == "➕ New Consultation":
                         clinic_doctor_email,
                         urgency,
                         assigned_cardiologist_email,
-                        lab_tests
+                        lab_tests,
+                        lab_remarks,
+                        image_remarks,
+                        provisional_diagnosis
                     )
                     
                     # Handle response
@@ -1529,6 +1561,12 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My R
                     st.markdown("**Symptoms:**")
                     st.write(consult['symptoms'])
                     
+                    # Display GP's Provisional Diagnosis if available
+                    if consult.get('provisional_diagnosis'):
+                        st.markdown("---")
+                        st.markdown("**🩺 GP's Provisional Diagnosis:**")
+                        st.warning(consult['provisional_diagnosis'])
+                    
                     # Display Lab Investigations if available
                     if consult.get('lab_investigations') and len(consult['lab_investigations']) > 0:
                         st.markdown("---")
@@ -1556,6 +1594,17 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My R
                                 st.write(lab['date_time'])
                             with col3:
                                 st.write(lab['result'])
+                        
+                        # Display GP's Lab Remarks if available
+                        if consult.get('lab_remarks'):
+                            st.markdown("**💬 GP's Remarks on Lab Results:**")
+                            st.info(consult['lab_remarks'])
+                    
+                    # Display GP's Image Remarks if available
+                    if consult.get('image_remarks') and (consult['patient'].get('ecg_image') or consult['patient'].get('xray_image')):
+                        st.markdown("---")
+                        st.markdown("**💬 GP's Remarks on Images:**")
+                        st.info(consult['image_remarks'])
                     
                     if consult['status'] in ['reviewed', 'completed']:
                         st.markdown("---")
@@ -1990,10 +2039,27 @@ elif page_clean == "💬 Respond to Consultation":
                             with col3:
                                 st.write(lab['result'])
                     
+                    # Display GP's Lab Remarks if available
+                    if selected_consult.get('lab_remarks'):
+                        st.markdown("**💬 GP's Remarks on Lab Results:**")
+                        st.info(selected_consult['lab_remarks'])
+                    
+                    # Display GP's Provisional Diagnosis if available
+                    if selected_consult.get('provisional_diagnosis'):
+                        st.markdown("---")
+                        st.markdown("**🩺 GP's Provisional Diagnosis:**")
+                        st.warning(selected_consult['provisional_diagnosis'])
+                    
                     # Display Medical Images if available
                     if selected_consult['patient'].get('ecg_image') or selected_consult['patient'].get('xray_image'):
                         st.markdown("---")
                         st.markdown("**📊 Medical Images:**")
+                        
+                        # Display GP's Image Remarks if available
+                        if selected_consult.get('image_remarks'):
+                            st.markdown("**💬 GP's Remarks on Images:**")
+                            st.info(selected_consult['image_remarks'])
+                        
                         img_col1, img_col2 = st.columns(2)
                         
                         with img_col1:
