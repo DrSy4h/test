@@ -1420,11 +1420,11 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My R
                             # AI Analysis button
                             col_btn1, col_btn2 = st.columns([1, 3])
                             with col_btn1:
-                                if st.button("🤖 AI Analyze", key=f"analyze_ecg_{consult['_id']}"):
+                                if st.button("🤖 AI Analyze", key=f"analyze_ecg_{consult['consultation_id']}"):
                                     with st.spinner("🔄 Analyzing ECG..."):
                                         try:
                                             response = requests.post(
-                                                f"{API_URL}/consultations/{consult['_id']}/analyze-image",
+                                                f"{API_URL}/consultations/{consult['consultation_id']}/analyze-image",
                                                 params={"image_type": "ecg"}
                                             )
                                             if response.status_code == 200:
@@ -1448,11 +1448,11 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My R
                             # AI Analysis button
                             col_btn1, col_btn2 = st.columns([1, 3])
                             with col_btn1:
-                                if st.button("🤖 AI Analyze", key=f"analyze_xray_{consult['_id']}"):
+                                if st.button("🤖 AI Analyze", key=f"analyze_xray_{consult['consultation_id']}"):
                                     with st.spinner("🔄 Analyzing X-Ray..."):
                                         try:
                                             response = requests.post(
-                                                f"{API_URL}/consultations/{consult['_id']}/analyze-image",
+                                                f"{API_URL}/consultations/{consult['consultation_id']}/analyze-image",
                                                 params={"image_type": "xray"}
                                             )
                                             if response.status_code == 200:
@@ -1906,13 +1906,77 @@ elif page_clean == "💬 Respond to Consultation":
                     st.subheader("Consultation Details")
                     col1, col2 = st.columns(2)
                     with col1:
+                        st.markdown("**Patient Information:**")
                         st.write(f"**Patient:** {selected_consult['patient']['name']}")
                         st.write(f"**Age:** {selected_consult['patient']['age']}")
+                        st.write(f"**Gender:** {selected_consult['patient']['gender']}")
+                        st.write(f"**IC/Passport:** {selected_consult['patient']['ic_number']}")
+                        
+                        st.markdown("**Clinical Information:**")
                         st.write(f"**Symptoms:** {selected_consult['symptoms']}")
+                        st.write(f"**Urgency:** {selected_consult['urgency'].upper()}")
+                        
                     with col2:
+                        st.markdown("**Vital Signs:**")
                         st.write(f"**BP:** {selected_consult['vital_signs'].get('blood_pressure')}")
                         st.write(f"**HR:** {selected_consult['vital_signs'].get('heart_rate')} bpm")
-                        st.write(f"**Urgency:** {selected_consult['urgency']}")
+                        st.write(f"**Temperature:** {selected_consult['vital_signs'].get('temperature')}°C")
+                        st.write(f"**SpO2:** {selected_consult['vital_signs'].get('spo2')}%")
+                        st.write(f"**Respiratory Rate:** {selected_consult['vital_signs'].get('respiratory_rate')} /min")
+                    
+                    # Display Lab Investigations if available
+                    if selected_consult.get('lab_investigations') and len(selected_consult['lab_investigations']) > 0:
+                        st.markdown("---")
+                        st.markdown("**🧪 Lab Investigations:**")
+                        # Sort by date descending
+                        sorted_labs = sorted(selected_consult['lab_investigations'], key=lambda x: x['date_time'], reverse=True)
+                        
+                        # Create table header
+                        col1, col2, col3 = st.columns([3, 2, 3])
+                        with col1:
+                            st.markdown("**Test Name**")
+                        with col2:
+                            st.markdown("**Date & Time**")
+                        with col3:
+                            st.markdown("**Result**")
+                        
+                        st.markdown("---")
+                        
+                        # Display each lab test
+                        for lab in sorted_labs:
+                            col1, col2, col3 = st.columns([3, 2, 3])
+                            with col1:
+                                st.write(lab['test_name'])
+                            with col2:
+                                st.write(lab['date_time'])
+                            with col3:
+                                st.write(lab['result'])
+                    
+                    # Display Medical Images if available
+                    if selected_consult['patient'].get('ecg_image') or selected_consult['patient'].get('xray_image'):
+                        st.markdown("---")
+                        st.markdown("**📊 Medical Images:**")
+                        img_col1, img_col2 = st.columns(2)
+                        
+                        with img_col1:
+                            if selected_consult['patient'].get('ecg_image'):
+                                st.markdown("**ECG Image:**")
+                                st.image(f"http://localhost:8000/uploads/{selected_consult['patient']['ecg_image']}", 
+                                       caption="ECG", width=400)
+                                
+                                # Show AI analysis if available
+                                if selected_consult.get('ecg_analysis'):
+                                    st.info(f"**🤖 AI ECG Analysis:**\n\n{selected_consult['ecg_analysis']}")
+                        
+                        with img_col2:
+                            if selected_consult['patient'].get('xray_image'):
+                                st.markdown("**X-Ray Image:**")
+                                st.image(f"http://localhost:8000/uploads/{selected_consult['patient']['xray_image']}", 
+                                       caption="X-Ray", width=400)
+                                
+                                # Show AI analysis if available
+                                if selected_consult.get('xray_analysis'):
+                                    st.info(f"**🤖 AI X-Ray Analysis:**\n\n{selected_consult['xray_analysis']}")
                     
                     st.markdown("---")
                     st.subheader("Your Response")
@@ -2117,7 +2181,7 @@ elif page_clean == "📊 Statistics" or page_clean == "📊 My Statistics":
                                         if st.button("🤖 Analyze ECG", key="btn_analyze_ecg"):
                                             with st.spinner("🔄 Analyzing ECG image..."):
                                                 response = requests.post(
-                                                    f"{API_URL}/consultations/{selected_consult['_id']}/analyze-image",
+                                                    f"{API_URL}/consultations/{selected_consult['consultation_id']}/analyze-image",
                                                     params={"image_type": "ecg"}
                                                 )
                                                 if response.status_code == 200:
@@ -2145,7 +2209,7 @@ elif page_clean == "📊 Statistics" or page_clean == "📊 My Statistics":
                                         if st.button("🤖 Analyze X-Ray", key="btn_analyze_xray"):
                                             with st.spinner("🔄 Analyzing X-Ray image..."):
                                                 response = requests.post(
-                                                    f"{API_URL}/consultations/{selected_consult['_id']}/analyze-image",
+                                                    f"{API_URL}/consultations/{selected_consult['consultation_id']}/analyze-image",
                                                     params={"image_type": "xray"}
                                                 )
                                                 if response.status_code == 200:
