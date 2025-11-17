@@ -28,6 +28,16 @@ class Doctor(BaseModel):
     nsr_number: Optional[str] = None  # NSR No. (for Cardiologists only)
     password: str  # Hashed password for authentication
 
+class DoctorUpdate(BaseModel):
+    """Model for updating doctor information (without password)"""
+    name: str
+    email: EmailStr
+    role: DoctorRole
+    hospital_clinic: str
+    ic_passport: str
+    mmc_number: str
+    nsr_number: Optional[str] = None
+
 class DoctorLogin(BaseModel):
     email: EmailStr
     password: str

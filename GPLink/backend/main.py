@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from models import (
-    Doctor, DoctorLogin, ConsultationRequest, ConsultationResponse,
+    Doctor, DoctorUpdate, DoctorLogin, ConsultationRequest, ConsultationResponse,
     ConsultationStatus, DoctorRole
 )
 from passlib.context import CryptContext
@@ -140,7 +140,7 @@ def set_doctor_password(email: str, password_data: dict):
         return {"success": False, "message": "Password already set or no changes made"}
 
 @app.put("/api/doctors/{email}", tags=["Doctors"])
-def update_doctor(email: str, doctor: Doctor):
+def update_doctor(email: str, doctor: DoctorUpdate):
     """Update doctor information"""
     result = crud.update_doctor(email, doctor)
     if result["success"]:

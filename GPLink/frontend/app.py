@@ -180,7 +180,9 @@ def update_doctor(old_email, name, email, role, hospital_clinic, ic_passport, mm
     if nsr_number:
         payload["nsr_number"] = nsr_number
     response = requests.put(f"{API_URL}/doctors/{old_email}", json=payload)
-    return response.json()
+    result = response.json()
+    print(f"DEBUG - Update doctor response: {result}")  # Debug logging
+    return result
 
 def delete_doctor(email):
     """Delete doctor"""
