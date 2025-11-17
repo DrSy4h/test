@@ -1186,9 +1186,12 @@ elif page_clean == "👥 Manage Doctors":
                                                 edit_mmc,
                                                 None
                                             )
-                                            st.success("✅ GP Clinician updated successfully!")
-                                            st.session_state[edit_key] = False
-                                            st.rerun()
+                                            if result.get('success', False) or result.get('message'):
+                                                st.success("✅ GP Clinician updated successfully!")
+                                                st.session_state[edit_key] = False
+                                                st.rerun()
+                                            else:
+                                                st.error(f"❌ Update failed: {result.get('error', 'Unknown error')}")
                                         except Exception as e:
                                             st.error(f"❌ Error: {e}")
                                     else:
