@@ -1197,6 +1197,21 @@ elif page_clean == "➕ New Consultation":
         st.error("❌ Only GP Clinicians and Administrators can create consultations.")
         st.stop()
     
+    # File uploaders MUST be outside form
+    st.subheader("📎 Medical Images (Optional)")
+    st.markdown("*Upload ECG and/or X-Ray images before filling the form*")
+    col1, col2 = st.columns(2)
+    with col1:
+        ecg_file = st.file_uploader("Upload ECG Image", type=["jpg", "jpeg", "png", "pdf"], key="ecg_uploader")
+        if ecg_file:
+            st.image(ecg_file, caption="ECG Preview", use_column_width=True)
+    with col2:
+        xray_file = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"], key="xray_uploader")
+        if xray_file:
+            st.image(xray_file, caption="X-Ray Preview", use_column_width=True)
+    
+    st.markdown("---")
+    
     with st.form("consultation_form"):
         st.subheader("Patient Information")
         col1, col2 = st.columns(2)
@@ -1245,17 +1260,6 @@ elif page_clean == "➕ New Consultation":
         )
         
         st.markdown("---")
-        
-        st.subheader("📎 Medical Images (Optional)")
-        col1, col2 = st.columns(2)
-        with col1:
-            ecg_file = st.file_uploader("Upload ECG Image", type=["jpg", "jpeg", "png", "pdf"])
-            if ecg_file:
-                st.image(ecg_file, caption="ECG Preview", use_container_width=True)
-        with col2:
-            xray_file = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"])
-            if xray_file:
-                st.image(xray_file, caption="X-Ray Preview", use_container_width=True)
         
         image_remarks = st.text_area(
             "Remarks on Images (Optional)",
