@@ -6,13 +6,21 @@ User interface for clinic doctors and cardiologists
 import streamlit as st
 import requests
 import json
+import os
+import base64
 from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # API Base URL
 API_URL = "http://localhost:8000/api"
@@ -1412,38 +1420,149 @@ elif page_clean == "➕ New Consultation":
                         except Exception as e:
                             st.warning(f"⚠️ X-Ray upload failed: {e}")
                     
-                    # Clear uploaded files from session state after successful submission
+                    # Clear uploaded files and AI analysis from session state after successful submission
                     if consultation_id:
                         st.session_state.ecg_file = None
                         st.session_state.xray_file = None
+                        st.session_state.ecg_ai_analysis = None
+                        st.session_state.xray_ai_analysis = None
                     
                 except Exception as e:
                     st.error(f"❌ Error: {e}")
             else:
                 st.warning("Please fill in all required fields")
     
-    # File uploaders section (OUTSIDE form - after form submission logic)
+    # File uploaders section (OUTSIDE form - BEFORE form submission)
     st.markdown("---")
-    st.subheader("📎 Upload Medical Images")
-    st.markdown("*Upload ECG and/or X-Ray images here (displayed after upload)*")
+    st.subheader("📎 Upload Medical Images First")
+    st.markdown("*Upload and analyze images here, then use the insights when filling the form below*")
+    
+    # Initialize session state for AI analysis results
+    if 'ecg_ai_analysis' not in st.session_state:
+        st.session_state.ecg_ai_analysis = None
+    if 'xray_ai_analysis' not in st.session_state:
+        st.session_state.xray_ai_analysis = None
     
     col1, col2 = st.columns(2)
     with col1:
         ecg_upload = st.file_uploader("Upload ECG Image", type=["jpg", "jpeg", "png", "pdf"], key="ecg_uploader")
         if ecg_upload:
             st.session_state.ecg_file = ecg_upload
-        if st.session_state.ecg_file and st.session_state.ecg_file.type.startswith('image/'):
-            st.image(st.session_state.ecg_file, caption="ECG Preview", use_column_width=True)
-        elif st.session_state.ecg_file:
-            st.info(f"📄 {st.session_state.ecg_file.name} uploaded (PDF preview not available)")
+        if st.session_state.ecg_file:
+            if st.session_state.ecg_file.type.startswith('image/'):
+                st.image(st.session_state.ecg_file, caption="ECG Preview", use_column_width=True)
+            else:
+                st.info(f"📄 {st.session_state.ecg_file.name} uploaded (PDF preview not available)")
+            
+            # AI Analysis button
+            if st.button("🤖 Analyze ECG with AI", key="analyze_ecg_btn"):
+                with st.spinner("🔄 Analyzing ECG image..."):
+                    try:
+                        # Read and encode image
+                        image_data = base64.standard_b64encode(st.session_state.ecg_file.getvalue()).decode("utf-8")
+                        
+                        # Get file extension and mime type
+                        file_ext = Path(st.session_state.ecg_file.name).suffix.lower()
+                        mime_type_map = {
+                            ".jpg": "image/jpeg",
+                            ".jpeg": "image/jpeg",
+                            ".png": "image/png",
+                            ".gif": "image/gif",
+                            ".webp": "image/webp"
+                        }
+                        mime_type = mime_type_map.get(file_ext, "image/jpeg")
+                        
+                        # Configure Gemini
+                        genai.configure(api_key=os.getenv('GOOGLE_GEMINI_API_KEY'))
+                        model = genai.GenerativeModel("gemini-2.0-flash")
+                        
+                        # Prepare image
+                        image_part = {"mime_type": mime_type, "data": image_data}
+                        
+                        # Analysis prompt
+                        prompt = """Analyze this ECG (electrocardiogram) image and provide a medical assessment. 
+                        Include:
+                        1. Overall rhythm and rate assessment
+                        2. Any abnormalities detected
+                        3. QRS complex characteristics
+                        4. ST segment analysis
+                        5. Clinical significance and recommendations
+                        
+                        Please provide a concise, clinically useful analysis."""
+                        
+                        # Generate analysis
+                        response = model.generate_content([prompt, image_part])
+                        st.session_state.ecg_ai_analysis = response.text
+                        st.success("✅ ECG Analysis Complete!")
+                    except Exception as e:
+                        st.error(f"❌ Analysis failed: {str(e)}")
+            
+            # Display existing analysis
+            if st.session_state.ecg_ai_analysis:
+                with st.expander("📋 AI ECG Analysis", expanded=True):
+                    st.info(st.session_state.ecg_ai_analysis)
+                    if st.button("📋 Copy to clipboard", key="copy_ecg"):
+                        st.code(st.session_state.ecg_ai_analysis, language=None)
+    
     with col2:
         xray_upload = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"], key="xray_uploader")
         if xray_upload:
             st.session_state.xray_file = xray_upload
-        if st.session_state.xray_file and st.session_state.xray_file.type.startswith('image/'):
-            st.image(st.session_state.xray_file, caption="X-Ray Preview", use_column_width=True)
-        elif st.session_state.xray_file:
-            st.info(f"📄 {st.session_state.xray_file.name} uploaded (PDF preview not available)")
+        if st.session_state.xray_file:
+            if st.session_state.xray_file.type.startswith('image/'):
+                st.image(st.session_state.xray_file, caption="X-Ray Preview", use_column_width=True)
+            else:
+                st.info(f"📄 {st.session_state.xray_file.name} uploaded (PDF preview not available)")
+            
+            # AI Analysis button
+            if st.button("🤖 Analyze X-Ray with AI", key="analyze_xray_btn"):
+                with st.spinner("🔄 Analyzing X-Ray image..."):
+                    try:
+                        # Read and encode image
+                        image_data = base64.standard_b64encode(st.session_state.xray_file.getvalue()).decode("utf-8")
+                        
+                        # Get file extension and mime type
+                        file_ext = Path(st.session_state.xray_file.name).suffix.lower()
+                        mime_type_map = {
+                            ".jpg": "image/jpeg",
+                            ".jpeg": "image/jpeg",
+                            ".png": "image/png",
+                            ".gif": "image/gif",
+                            ".webp": "image/webp"
+                        }
+                        mime_type = mime_type_map.get(file_ext, "image/jpeg")
+                        
+                        # Configure Gemini
+                        genai.configure(api_key=os.getenv('GOOGLE_GEMINI_API_KEY'))
+                        model = genai.GenerativeModel("gemini-2.0-flash")
+                        
+                        # Prepare image
+                        image_part = {"mime_type": mime_type, "data": image_data}
+                        
+                        # Analysis prompt
+                        prompt = """Analyze this chest X-Ray image and provide a medical assessment.
+                        Include:
+                        1. Overall assessment of the chest cavity
+                        2. Heart size and shape evaluation
+                        3. Lung field analysis
+                        4. Any abnormalities or findings detected
+                        5. Clinical recommendations
+                        
+                        Please provide a concise, clinically useful analysis."""
+                        
+                        # Generate analysis
+                        response = model.generate_content([prompt, image_part])
+                        st.session_state.xray_ai_analysis = response.text
+                        st.success("✅ X-Ray Analysis Complete!")
+                    except Exception as e:
+                        st.error(f"❌ Analysis failed: {str(e)}")
+            
+            # Display existing analysis
+            if st.session_state.xray_ai_analysis:
+                with st.expander("📋 AI X-Ray Analysis", expanded=True):
+                    st.info(st.session_state.xray_ai_analysis)
+                    if st.button("📋 Copy to clipboard", key="copy_xray"):
+                        st.code(st.session_state.xray_ai_analysis, language=None)
 
 # ============= VIEW CONSULTATIONS =============
 
