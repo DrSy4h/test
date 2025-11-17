@@ -15,6 +15,11 @@
 - ✅ **Full CRUD Operations** - Create, Read, Update, Delete for consultations and doctors
 - ✅ **Real-time Email Validation** - Instant verification for GP and Cardiologist emails
 - ✅ **Medical Image Management** - Upload, view, edit, and remove ECG/X-Ray images
+- ✅ **Lab Investigations & Remarks** - Track lab results with GP's detailed remarks
+- ✅ **Medical Image Remarks** - GP can add observations about ECG/X-Ray for cardiologist review
+- ✅ **Provisional Diagnosis** - GP's initial diagnosis before specialist review
+- ✅ **Cardiologist Assignment** - Assign to specific cardiologist or open for any available
+- ✅ **Follow-up Discussion** - GP can send follow-up questions after cardiologist response
 - ✅ **PDF Referral Letters** - Auto-generate professional referral letters with optional images
 - ✅ **Consultation Workflow** - Pending → Reviewed → Completed status tracking
 - ✅ **GP Decision System** - Complete or Continue discussion after cardiologist response
@@ -27,6 +32,9 @@
 - ✅ **Clickable Patient Files** - View detailed consultation records from statistics
 - ✅ **Edit Consultations** - Full editing capability for pending consultations
 - ✅ **Urgency Indicators** - Color-coded urgency levels (🟢 Normal, 🟡 Urgent, 🔴 Emergency)
+- ✅ **Consultation Details** - Lab investigations with remarks, image remarks, provisional diagnosis
+- ✅ **Smart Display** - Show remarks even without lab/image data
+- ✅ **Auto-Clear Files** - Automatic file cleanup when navigating to new consultation
 
 ### Professional Features
 - ✅ **MMC & NSR Validation** - Malaysian Medical Council and National Specialist Register numbers
@@ -277,7 +285,19 @@ See **TESTING_GUIDE.md** or **GPLink_Cardio_Testing_Guide.pdf** for:
 
 ## 📝 Recent Updates
 
-### Latest Changes (Nov 2025):
+### Latest Changes (Nov 2025 - Final Release):
+- ✅ **Lab Remarks** - GP can add detailed remarks about lab investigations for cardiologist review
+- ✅ **Image Remarks** - GP can add observations about medical images (ECG/X-Ray)
+- ✅ **Provisional Diagnosis** - GP provides initial clinical assessment before specialist review
+- ✅ **Assigned Consultations** - Cardiologists can see assigned pending cases in statistics and responses
+- ✅ **Smart Display Logic** - Display remarks even without lab results or medical images
+- ✅ **Auto-Clear Files** - Automatic file cleanup when entering new consultation page
+- ✅ **Improved Navigation** - Better badge format handling for notification counters
+- ✅ **Follow-up Discussion** - Fully implemented with database storage and display
+- ✅ **Professional Display Order** - Consultation details → Lab Investigations → Image Remarks → Provisional Diagnosis
+- ✅ **Page Reload Auto-Clear** - Files automatically clear on page refresh or navigation
+
+### Previous Updates (Nov 2025):
 - ✅ **Authentication System** - Login/logout with bcrypt password hashing (Python 3.12 compatible)
 - ✅ **Role-Based Access** - GP Clinician, Cardiologist, and Admin roles with separate menus
 - ✅ **Password Reset** - Admin can reset any doctor's password via inline actions

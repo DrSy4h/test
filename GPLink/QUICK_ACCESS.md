@@ -117,15 +117,15 @@ Selected: #6B5640
 
 ### **For GP Clinicians**:
 - 🏠 Home
-- ➕ New Consultation
+- ➕ New Consultation (with Auto-Clear Files button)
 - 📋 View My Consultations (with response count badge)
 - 📊 My Statistics
 
 ### **For Cardiologists**:
 - 🏠 Home
 - 💬 Respond to Consultation (with pending count badge)
-- 📋 View My Responses
-- 📊 My Statistics
+- 📋 View My Responses (shows assigned + reviewed cases)
+- 📊 My Statistics (includes assigned pending consultations)
 
 ### **For Admins**:
 - 🏠 Home

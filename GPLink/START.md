@@ -37,6 +37,9 @@ MONGODB_DATABASE_NAME=gplink_db
 - requests==2.32.3
 - python-multipart==0.0.20
 - email-validator==2.3.0
+- bcrypt==4.0.1
+- plotly==5.24.1
+- reportlab==4.2.5
 
 ---
 
@@ -50,17 +53,28 @@ MONGODB_DATABASE_NAME=gplink_db
 ```
 GPLink/
 ├── backend/
-│   ├── main.py          # FastAPI server
+│   ├── main.py          # FastAPI server (15+ endpoints)
 │   ├── database.py      # MongoDB connection
-│   ├── models.py        # Pydantic schemas
-│   └── crud.py          # CRUD operations
+│   ├── models.py        # Pydantic schemas (with lab_remarks, image_remarks, provisional_diagnosis)
+│   └── crud.py          # CRUD operations (full CRUD)
 ├── frontend/
-│   └── app.py           # Streamlit UI
+│   └── app.py           # Streamlit UI (~2700 lines)
 ├── uploads/             # Medical images (ECG/X-Ray)
 ├── .env                 # Environment variables
 ├── requirements.txt     # Dependencies
 └── README.md           # Full documentation
 ```
+
+---
+
+## ✅ New Features (Nov 2025 - Final Release)
+- 📋 **Lab Remarks** - GP adds notes about lab investigations
+- 🖼️ **Image Remarks** - GP notes about ECG/X-Ray findings
+- 🩺 **Provisional Diagnosis** - GP's initial clinical assessment
+- 👨‍⚕️ **Cardiologist Assignment** - Assigned cases visible in statistics
+- 🔄 **Follow-up Discussion** - GP sends follow-up questions to cardiologist
+- 🗑️ **Auto-Clear Files** - Files clear when entering new consultation page
+- 📊 **Smart Display** - Show remarks even without lab/image data
 
 ---
 
@@ -81,16 +95,6 @@ pip install -r requirements.txt
 - Check `.env` file has correct connection string
 - Ensure IP is whitelisted in MongoDB Atlas
 - Verify internet connection
-
----
-
-## ✅ Features
-- ✨ Doctor registration (Clinic Doctor & Cardiologist)
-- 📝 Consultation request creation
-- 📎 ECG & X-Ray image upload
-- 💬 Cardiologist response system
-- 📊 Statistics dashboard
-- 🎨 Custom brown theme (#9A7D61)
 
 ---
 
