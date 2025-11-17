@@ -1195,8 +1195,12 @@ elif page_clean == "➕ New Consultation":
         col1, col2 = st.columns(2)
         with col1:
             ecg_file = st.file_uploader("Upload ECG Image", type=["jpg", "jpeg", "png", "pdf"])
+            if ecg_file:
+                st.image(ecg_file, caption="ECG Preview", use_container_width=True)
         with col2:
             xray_file = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"])
+            if xray_file:
+                st.image(xray_file, caption="X-Ray Preview", use_container_width=True)
         
         st.markdown("---")
         
@@ -1291,6 +1295,23 @@ elif page_clean == "➕ New Consultation":
                         try:
                             ecg_result = upload_ecg(consultation_id, ecg_file)
                             st.success(f"📎 ECG image uploaded: {ecg_result['filename']}")
+                            
+                            # Auto-run AI analysis
+                            with st.spinner("🤖 Running AI analysis on ECG..."):
+                                try:
+                                    ai_response = requests.post(
+                                        f"{API_URL}/consultations/{consultation_id}/analyze-image",
+                                        params={"image_type": "ecg"}
+                                    )
+                                    if ai_response.status_code == 200:
+                                        ai_result = ai_response.json()
+                                        st.success("✅ AI analysis completed!")
+                                        with st.expander("🤖 View ECG Analysis", expanded=True):
+                                            st.info(ai_result.get('analysis', 'Analysis completed'))
+                                    else:
+                                        st.warning(f"⚠️ AI analysis skipped: {ai_response.text}")
+                                except Exception as ai_error:
+                                    st.warning(f"⚠️ AI analysis failed: {ai_error}")
                         except Exception as e:
                             st.warning(f"⚠️ ECG upload failed: {e}")
                     
@@ -1298,6 +1319,23 @@ elif page_clean == "➕ New Consultation":
                         try:
                             xray_result = upload_xray(consultation_id, xray_file)
                             st.success(f"📎 X-Ray image uploaded: {xray_result['filename']}")
+                            
+                            # Auto-run AI analysis
+                            with st.spinner("🤖 Running AI analysis on X-Ray..."):
+                                try:
+                                    ai_response = requests.post(
+                                        f"{API_URL}/consultations/{consultation_id}/analyze-image",
+                                        params={"image_type": "xray"}
+                                    )
+                                    if ai_response.status_code == 200:
+                                        ai_result = ai_response.json()
+                                        st.success("✅ AI analysis completed!")
+                                        with st.expander("🤖 View X-Ray Analysis", expanded=True):
+                                            st.info(ai_result.get('analysis', 'Analysis completed'))
+                                    else:
+                                        st.warning(f"⚠️ AI analysis skipped: {ai_response.text}")
+                                except Exception as ai_error:
+                                    st.warning(f"⚠️ AI analysis failed: {ai_error}")
                         except Exception as e:
                             st.warning(f"⚠️ X-Ray upload failed: {e}")
                     
