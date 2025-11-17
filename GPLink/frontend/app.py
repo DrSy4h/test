@@ -2064,11 +2064,56 @@ elif page_clean == "📊 Statistics" or page_clean == "📊 My Statistics":
                                     st.markdown("**📊 ECG Image:**")
                                     st.image(f"http://localhost:8000/uploads/{selected_consult['patient']['ecg_image']}", 
                                            caption="ECG", width=400)
+                                    
+                                    # AI Analysis button for ECG
+                                    col_analyze, col_space = st.columns([1, 2])
+                                    with col_analyze:
+                                        if st.button("🤖 Analyze ECG", key="btn_analyze_ecg"):
+                                            with st.spinner("🔄 Analyzing ECG image..."):
+                                                response = requests.post(
+                                                    f"{API_URL}/consultations/{selected_consult['_id']}/analyze-image",
+                                                    params={"image_type": "ecg"}
+                                                )
+                                                if response.status_code == 200:
+                                                    result = response.json()
+                                                    st.success("✅ Analysis complete!")
+                                                    st.info(f"**AI ECG Analysis:**\n\n{result['analysis']}")
+                                                else:
+                                                    st.error(f"❌ Error: {response.json().get('detail', 'Unknown error')}")
+                                    
+                                    # Display existing analysis if available
+                                    if selected_consult.get('ecg_analysis'):
+                                        st.markdown("---")
+                                        st.markdown("**📋 ECG Analysis History:**")
+                                        st.info(selected_consult['ecg_analysis'])
+                                        
                             with img_col2:
                                 if selected_consult['patient'].get('xray_image'):
                                     st.markdown("**🩻 X-Ray Image:**")
                                     st.image(f"http://localhost:8000/uploads/{selected_consult['patient']['xray_image']}", 
                                            caption="X-Ray", width=400)
+                                    
+                                    # AI Analysis button for X-Ray
+                                    col_analyze, col_space = st.columns([1, 2])
+                                    with col_analyze:
+                                        if st.button("🤖 Analyze X-Ray", key="btn_analyze_xray"):
+                                            with st.spinner("🔄 Analyzing X-Ray image..."):
+                                                response = requests.post(
+                                                    f"{API_URL}/consultations/{selected_consult['_id']}/analyze-image",
+                                                    params={"image_type": "xray"}
+                                                )
+                                                if response.status_code == 200:
+                                                    result = response.json()
+                                                    st.success("✅ Analysis complete!")
+                                                    st.info(f"**AI X-Ray Analysis:**\n\n{result['analysis']}")
+                                                else:
+                                                    st.error(f"❌ Error: {response.json().get('detail', 'Unknown error')}")
+                                    
+                                    # Display existing analysis if available
+                                    if selected_consult.get('xray_analysis'):
+                                        st.markdown("---")
+                                        st.markdown("**📋 X-Ray Analysis History:**")
+                                        st.info(selected_consult['xray_analysis'])
                         
                         # Cardiologist Response
                         if selected_consult['status'] in ['reviewed', 'completed']:

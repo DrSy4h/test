@@ -11,3 +11,4 @@ reportlab==4.2.5
 plotly==5.24.1
 passlib
 bcrypt
+google-generativeai==0.8.5

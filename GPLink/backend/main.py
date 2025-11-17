@@ -14,6 +14,7 @@ from models import (
 from passlib.context import CryptContext
 from database import doctors_collection, consultations_collection
 import crud
+from ai_analysis import analyze_medical_image
 from typing import List, Optional
 from pathlib import Path
 import json
@@ -345,6 +346,61 @@ async def get_image(filename: str):
         return FileResponse(file_path)
     else:
         raise HTTPException(status_code=404, detail="Image not found")
+
+# ============= AI ANALYSIS ENDPOINTS =============
+
+@app.post("/api/consultations/{consultation_id}/analyze-image", tags=["AI Analysis"])
+def analyze_consultation_image(consultation_id: str, image_type: str):
+    """
+    Analyze medical image (ECG or X-Ray) using AI
+    
+    - **image_type**: "ecg" or "xray"
+    - Returns: AI analysis of the image
+    """
+    try:
+        # Get consultation
+        consultation = crud.get_consultation(consultation_id)
+        if not consultation:
+            raise HTTPException(status_code=404, detail="Consultation not found")
+        
+        # Determine which image to analyze
+        if image_type.lower() == "ecg":
+            image_filename = consultation.get("patient", {}).get("ecg_image")
+            if not image_filename:
+                raise HTTPException(status_code=400, detail="No ECG image found for this consultation")
+        elif image_type.lower() == "xray":
+            image_filename = consultation.get("patient", {}).get("xray_image")
+            if not image_filename:
+                raise HTTPException(status_code=400, detail="No X-Ray image found for this consultation")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid image type. Use 'ecg' or 'xray'")
+        
+        # Get full path to image
+        image_path = crud.get_file_path(image_filename)
+        
+        if not image_path.exists():
+            raise HTTPException(status_code=404, detail="Image file not found")
+        
+        # Analyze image using AI
+        analysis = analyze_medical_image(str(image_path), image_type)
+        
+        # Save analysis to consultation
+        field_name = f"ecg_analysis" if image_type.lower() == "ecg" else f"xray_analysis"
+        crud.consultations_collection.update_one(
+            {"consultation_id": consultation_id},
+            {"$set": {field_name: analysis}}
+        )
+        
+        return {
+            "image_type": image_type,
+            "analysis": analysis,
+            "timestamp": str(__import__("datetime").datetime.now())
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error analyzing image: {str(e)}")
 
 # ============= HEALTH CHECK =============
 

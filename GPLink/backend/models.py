@@ -75,6 +75,10 @@ class Consultation(BaseModel):
     # Lab investigations
     lab_investigations: Optional[List[dict]] = []  # List of lab tests: [{test_name, date_time, result}]
     
+    # AI Analysis fields
+    ecg_analysis: Optional[str] = None  # AI analysis of ECG image
+    xray_analysis: Optional[str] = None  # AI analysis of X-Ray image
+    
     # Response fields (filled by cardiologist)
     diagnosis: Optional[str] = None
     recommendations: Optional[str] = None
