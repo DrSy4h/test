@@ -304,17 +304,43 @@ def generate_referral_letter_pdf(consultation, gp_doctor, referral_reason="", in
     elements.append(vital_table)
     elements.append(Spacer(1, 0.2*inch))
     
-    # Reason for Referral
-    if referral_reason:
-        elements.append(Paragraph("<b>Reason for Referral:</b>", header_style))
-        elements.append(Paragraph(referral_reason, normal_style))
+    # Lab Investigations
+    if consultation.get('lab_investigations') and len(consultation['lab_investigations']) > 0:
+        elements.append(Paragraph("<b>Lab Investigations:</b>", header_style))
+        sorted_labs = sorted(consultation['lab_investigations'], key=lambda x: x['date_time'], reverse=True)
+        lab_data = [['Test Name', 'Date & Time', 'Result']]
+        for lab in sorted_labs:
+            lab_data.append([lab['test_name'], lab['date_time'], lab['result']])
+        
+        lab_table = Table(lab_data, colWidths=[2*inch, 1.5*inch, 2.5*inch])
+        lab_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9A7D61')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F5F5')])
+        ]))
+        elements.append(lab_table)
+        elements.append(Spacer(1, 0.1*inch))
+        
+        # Lab Remarks
+        if consultation.get('lab_remarks'):
+            elements.append(Paragraph(f"<b>GP's Remarks on Lab Results:</b>", ParagraphStyle('small_header', parent=header_style, fontSize=10)))
+            elements.append(Paragraph(consultation['lab_remarks'], normal_style))
+        
         elements.append(Spacer(1, 0.2*inch))
     
-    # Urgency
-    elements.append(Paragraph(f"<b>Urgency Level:</b> {consultation['urgency'].upper()}", header_style))
-    elements.append(Spacer(1, 0.2*inch))
+    # GP's Provisional Diagnosis
+    if consultation.get('provisional_diagnosis'):
+        elements.append(Paragraph("<b>GP's Provisional Diagnosis:</b>", header_style))
+        elements.append(Paragraph(consultation['provisional_diagnosis'], normal_style))
+        elements.append(Spacer(1, 0.2*inch))
     
-    # Medical Images (if included)
+    # Medical Images with GP's Remarks
     if include_images:
         patient = consultation['patient']
         if patient.get('ecg_image') or patient.get('xray_image'):
@@ -324,7 +350,24 @@ def generate_referral_letter_pdf(consultation, gp_doctor, referral_reason="", in
             if patient.get('xray_image'):
                 elements.append(Paragraph(f"• X-Ray Image: {patient['xray_image']}", normal_style))
             elements.append(Paragraph("<i>(Images available in digital consultation record)</i>", ParagraphStyle('small', parent=normal_style, fontSize=8, textColor=colors.grey)))
+            
+            # Image Remarks
+            if consultation.get('image_remarks'):
+                elements.append(Spacer(1, 0.1*inch))
+                elements.append(Paragraph(f"<b>GP's Remarks on Images:</b>", ParagraphStyle('small_header', parent=header_style, fontSize=10)))
+                elements.append(Paragraph(consultation['image_remarks'], normal_style))
+            
             elements.append(Spacer(1, 0.2*inch))
+    
+    # Reason for Referral
+    if referral_reason:
+        elements.append(Paragraph("<b>Reason for Referral:</b>", header_style))
+        elements.append(Paragraph(referral_reason, normal_style))
+        elements.append(Spacer(1, 0.2*inch))
+    
+    # Urgency
+    elements.append(Paragraph(f"<b>Urgency Level:</b> {consultation['urgency'].upper()}", header_style))
+    elements.append(Spacer(1, 0.2*inch))
     
     # Footer
     elements.append(Paragraph("<i>I would appreciate your expert opinion on this patient's cardiac condition. Thank you for your assistance.</i>", normal_style))
