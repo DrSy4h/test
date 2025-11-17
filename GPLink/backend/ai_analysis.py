@@ -49,7 +49,7 @@ def analyze_ecg_image(image_path: str) -> str:
         mime_type = mime_type_map.get(file_ext, "image/jpeg")
         
         # Create Gemini model
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-pro-vision")
         
         # Prepare image for analysis
         image_part = {
@@ -111,7 +111,7 @@ def analyze_xray_image(image_path: str) -> str:
         mime_type = mime_type_map.get(file_ext, "image/jpeg")
         
         # Create Gemini model
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-pro-vision")
         
         # Prepare image for analysis
         image_part = {
