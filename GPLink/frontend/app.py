@@ -689,7 +689,8 @@ page = st.sidebar.radio(
 
 # Normalize page name (remove notification badges)
 import re
-page_clean = re.sub(r'\s*\(\d+\)$', '', page)  # Remove (number) at end
+# Remove various badge formats: (1), (🔴1), (🔴1 + 2), etc.
+page_clean = re.sub(r'\s*\([^)]*\).*$', '', page).strip()
 
 # Custom CSS for navigation styling
 st.sidebar.markdown("""
@@ -1223,19 +1224,27 @@ elif page_clean == "➕ New Consultation":
         st.error("❌ Only GP Clinicians and Administrators can create consultations.")
         st.stop()
     
-    # Initialize session state for file uploads - clear on page load
-    if 'current_page' not in st.session_state or st.session_state.current_page != 'new_consultation':
+    # Initialize and auto-clear session state when entering this page
+    if 'last_consultation_page' not in st.session_state:
+        st.session_state.last_consultation_page = None
+    
+    # Clear files when first entering the page or when returning to it
+    if st.session_state.last_consultation_page != '📝 New Consultation Request':
         st.session_state.ecg_file = None
         st.session_state.xray_file = None
         st.session_state.ecg_ai_analysis = None
         st.session_state.xray_ai_analysis = None
-        st.session_state.current_page = 'new_consultation'
-        st.session_state.form_counter = 0
+        st.session_state.last_consultation_page = '📝 New Consultation Request'
     
+    # Initialize session state variables if not exists
     if 'ecg_file' not in st.session_state:
         st.session_state.ecg_file = None
     if 'xray_file' not in st.session_state:
         st.session_state.xray_file = None
+    if 'ecg_ai_analysis' not in st.session_state:
+        st.session_state.ecg_ai_analysis = None
+    if 'xray_ai_analysis' not in st.session_state:
+        st.session_state.xray_ai_analysis = None
     if 'form_counter' not in st.session_state:
         st.session_state.form_counter = 0
     
@@ -1634,8 +1643,10 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View Cons
             # GP sees only consultations they created
             consultations = [c for c in all_consultations if c['clinic_doctor_email'] == user_email]
         else:  # cardiologist
-            # Cardiologist sees only consultations they responded to
-            consultations = [c for c in all_consultations if c.get('cardiologist_email') == user_email]
+            # Cardiologist sees consultations they responded to OR assigned to them
+            consultations = [c for c in all_consultations if 
+                           c.get('cardiologist_email') == user_email or 
+                           c.get('assigned_cardiologist_email') == user_email]
         
         if consultations:
             # Initialize session state for selected consultations
@@ -1832,6 +1843,24 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View Cons
                         st.markdown("**💬 GP's Remarks on Images:**")
                         st.info(consult['image_remarks'])
                     
+                    # Display Follow-up Notes if available
+                    if consult.get('followup_notes') and len(consult['followup_notes']) > 0:
+                        st.markdown("---")
+                        st.markdown("**📝 Follow-up Discussion:**")
+                        for idx, note in enumerate(consult['followup_notes'], 1):
+                            timestamp = note.get('timestamp', 'N/A')
+                            if timestamp != 'N/A':
+                                try:
+                                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                                    timestamp = dt.strftime('%d %b %Y, %I:%M %p')
+                                except:
+                                    pass
+                            
+                            with st.expander(f"💬 Note #{idx} - {note.get('from', 'Unknown')} ({timestamp})"):
+                                st.write(f"**From:** {note.get('from', 'Unknown')} ({note.get('email', 'N/A')})")
+                                st.write(f"**Time:** {timestamp}")
+                                st.info(note.get('note', 'No content'))
+                    
                     if consult['status'] in ['reviewed', 'completed']:
                         st.markdown("---")
                         st.markdown("**Cardiologist Response:**")
@@ -1894,10 +1923,44 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View Cons
                                     
                                     if st.form_submit_button("📤 Send to Cardiologist"):
                                         if followup_note:
-                                            # This would update the consultation with follow-up note
-                                            # For now, just show success message
-                                            st.info("💡 Feature in development: Follow-up notes will be sent to cardiologist for further review")
-                                            st.session_state[continue_key] = False
+                                            try:
+                                                # Get existing follow-up notes or create new list
+                                                existing_notes = consult.get('followup_notes', [])
+                                                
+                                                # Add new note with timestamp and GP name
+                                                new_note = {
+                                                    "note": followup_note,
+                                                    "from": st.session_state.user['name'],
+                                                    "email": st.session_state.user['email'],
+                                                    "timestamp": datetime.now().isoformat()
+                                                }
+                                                existing_notes.append(new_note)
+                                                
+                                                # Update consultation - include ALL required fields
+                                                update_payload = {
+                                                    "patient": consult['patient'],
+                                                    "symptoms": consult['symptoms'],
+                                                    "vital_signs": consult['vital_signs'],
+                                                    "clinic_doctor_email": consult['clinic_doctor_email'],
+                                                    "urgency": consult['urgency'],
+                                                    "assigned_cardiologist_email": consult.get('assigned_cardiologist_email'),
+                                                    "lab_investigations": consult.get('lab_investigations', []),
+                                                    "followup_notes": existing_notes
+                                                }
+                                                
+                                                response = requests.put(
+                                                    f"{API_URL}/consultations/{consult['consultation_id']}",
+                                                    json=update_payload
+                                                )
+                                                
+                                                if response.status_code == 200:
+                                                    st.success("✅ Follow-up note sent to cardiologist!")
+                                                    st.session_state[continue_key] = False
+                                                    st.rerun()
+                                                else:
+                                                    st.error(f"❌ Failed to send note: {response.text}")
+                                            except Exception as e:
+                                                st.error(f"❌ Error: {e}")
                                         else:
                                             st.warning("⚠️ Please enter a follow-up note")
                     
@@ -2201,9 +2264,35 @@ elif page_clean == "💬 Respond to Consultation":
                 selected = st.selectbox("Select Consultation", consultation_options)
                 
                 if selected:
-                    # Extract consultation ID (remove icon and split)
-                    consultation_id = selected.split(" ")[1]  # Get CON-XXX part
-                    selected_consult = next(c for c in all_cases if c['consultation_id'] == consultation_id)
+                    try:
+                        # Extract consultation ID (remove icon and split)
+                        # Format is: "🔴 CON-XXX - Patient Name" or "⚪ CON-XXX - Patient Name"
+                        parts = selected.split(" - ")
+                        if len(parts) >= 2:
+                            # Get the part with CON-XXX, remove the icon
+                            consult_part = parts[0].strip()
+                            # Split by space and get the CON-XXX part (should be last word)
+                            words = consult_part.split()
+                            consultation_id = words[-1] if words else ""
+                        else:
+                            # Fallback: try to find CON- pattern
+                            import re
+                            match = re.search(r'CON-[A-Z0-9]+', selected)
+                            consultation_id = match.group(0) if match else ""
+                        
+                        if not consultation_id:
+                            st.error("❌ Failed to extract consultation ID")
+                            st.stop()
+                        
+                        selected_consult = next((c for c in all_cases if c['consultation_id'] == consultation_id), None)
+                        
+                        if not selected_consult:
+                            st.error(f"❌ Consultation {consultation_id} not found")
+                            st.stop()
+                    except Exception as e:
+                        st.error(f"❌ Error loading consultation: {e}")
+                        st.write(f"DEBUG: Selected = {selected}")
+                        st.stop()
                     
                     # Show assignment info
                     if selected_consult.get('assigned_cardiologist_email'):
@@ -2217,6 +2306,7 @@ elif page_clean == "💬 Respond to Consultation":
                     
                     st.markdown("---")
                     st.subheader("Consultation Details")
+                    
                     col1, col2 = st.columns(2)
                     with col1:
                         st.markdown("**Patient Information:**")
@@ -2237,40 +2327,51 @@ elif page_clean == "💬 Respond to Consultation":
                         st.write(f"**SpO2:** {selected_consult['vital_signs'].get('spo2')}%")
                         st.write(f"**Respiratory Rate:** {selected_consult['vital_signs'].get('respiratory_rate')} /min")
                     
-                    # Display Lab Investigations if available
-                    if selected_consult.get('lab_investigations') and len(selected_consult['lab_investigations']) > 0:
+                    # 2. Display Lab Investigations and/or Lab Remarks if available
+                    if (selected_consult.get('lab_investigations') and len(selected_consult['lab_investigations']) > 0) or selected_consult.get('lab_remarks'):
                         st.markdown("---")
                         st.markdown("**🧪 Lab Investigations:**")
-                        # Sort by date descending
-                        sorted_labs = sorted(selected_consult['lab_investigations'], key=lambda x: x['date_time'], reverse=True)
                         
-                        # Create table header
-                        col1, col2, col3 = st.columns([3, 2, 3])
-                        with col1:
-                            st.markdown("**Test Name**")
-                        with col2:
-                            st.markdown("**Date & Time**")
-                        with col3:
-                            st.markdown("**Result**")
-                        
-                        st.markdown("---")
-                        
-                        # Display each lab test
-                        for lab in sorted_labs:
+                        # Display lab results table if available
+                        if selected_consult.get('lab_investigations') and len(selected_consult['lab_investigations']) > 0:
+                            # Sort by date descending
+                            sorted_labs = sorted(selected_consult['lab_investigations'], key=lambda x: x['date_time'], reverse=True)
+                            
+                            # Create table header
                             col1, col2, col3 = st.columns([3, 2, 3])
                             with col1:
-                                st.write(lab['test_name'])
+                                st.markdown("**Test Name**")
                             with col2:
-                                st.write(lab['date_time'])
+                                st.markdown("**Date & Time**")
                             with col3:
-                                st.write(lab['result'])
+                                st.markdown("**Result**")
+                            
+                            st.markdown("---")
+                            
+                            # Display each lab test
+                            for lab in sorted_labs:
+                                col1, col2, col3 = st.columns([3, 2, 3])
+                                with col1:
+                                    st.write(lab['test_name'])
+                                with col2:
+                                    st.write(lab['date_time'])
+                                with col3:
+                                    st.write(lab['result'])
+                        
+                        # Display GP's Lab Remarks (even without lab results)
+                        if selected_consult.get('lab_remarks'):
+                            if selected_consult.get('lab_investigations') and len(selected_consult['lab_investigations']) > 0:
+                                st.markdown("---")
+                            st.markdown("**💬 GP's Remarks on Lab Results:**")
+                            st.warning(selected_consult['lab_remarks'])
                     
-                    # Display GP's Lab Remarks if available
-                    if selected_consult.get('lab_remarks'):
-                        st.markdown("**💬 GP's Remarks on Lab Results:**")
-                        st.info(selected_consult['lab_remarks'])
+                    # 3. Display GP's Image Remarks if available
+                    if selected_consult.get('image_remarks'):
+                        st.markdown("---")
+                        st.markdown("**💬 GP's Remarks on Medical Images:**")
+                        st.warning(selected_consult['image_remarks'])
                     
-                    # Display GP's Provisional Diagnosis if available
+                    # 4. Display GP's Provisional Diagnosis if available
                     if selected_consult.get('provisional_diagnosis'):
                         st.markdown("---")
                         st.markdown("**🩺 GP's Provisional Diagnosis:**")
@@ -2281,11 +2382,24 @@ elif page_clean == "💬 Respond to Consultation":
                         st.markdown("---")
                         st.markdown("**📊 Medical Images:**")
                         
-                        # Display GP's Image Remarks if available
-                        if selected_consult.get('image_remarks'):
-                            st.markdown("**💬 GP's Remarks on Images:**")
-                            st.info(selected_consult['image_remarks'])
+                        # Display Follow-up Notes if available
+                        if selected_consult.get('followup_notes') and len(selected_consult['followup_notes']) > 0:
+                            st.markdown("**📝 Follow-up Discussion from GP:**")
+                            for idx, note in enumerate(selected_consult['followup_notes'], 1):
+                                timestamp = note.get('timestamp', 'N/A')
+                                if timestamp != 'N/A':
+                                    try:
+                                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                                        timestamp = dt.strftime('%d %b %Y, %I:%M %p')
+                                    except:
+                                        pass
+                                
+                                with st.expander(f"💬 Note #{idx} - {note.get('from', 'Unknown')} ({timestamp})", expanded=True):
+                                    st.write(f"**From:** {note.get('from', 'Unknown')} ({note.get('email', 'N/A')})")
+                                    st.write(f"**Time:** {timestamp}")
+                                    st.warning(note.get('note', 'No content'))
                         
+                        st.markdown("---")
                         img_col1, img_col2 = st.columns(2)
                         
                         with img_col1:
@@ -2369,7 +2483,10 @@ elif page_clean == "📊 Statistics" or page_clean == "📊 My Statistics":
             if user_role == 'clinic_doctor':
                 my_consultations = [c for c in all_consultations if c['clinic_doctor_email'] == user_email]
             else:  # cardiologist
-                my_consultations = [c for c in all_consultations if c.get('cardiologist_email') == user_email]
+                # Include both responded consultations AND assigned pending consultations
+                my_consultations = [c for c in all_consultations if 
+                                   c.get('cardiologist_email') == user_email or 
+                                   c.get('assigned_cardiologist_email') == user_email]
             
             # Calculate user-specific stats
             total_consultations = len(my_consultations)

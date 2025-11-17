@@ -58,6 +58,10 @@ class ConsultationRequest(BaseModel):
     urgency: str = "normal"  # normal, urgent, emergency
     assigned_cardiologist_email: Optional[EmailStr] = None  # Specific cardiologist or None for "Any Available"
     lab_investigations: Optional[List[dict]] = []  # List of lab tests: [{test_name, date_time, result}]
+    lab_remarks: Optional[str] = None  # GP's remarks about lab results
+    image_remarks: Optional[str] = None  # GP's remarks about medical images
+    provisional_diagnosis: Optional[str] = None  # GP's provisional diagnosis
+    followup_notes: Optional[List[dict]] = []  # Follow-up discussion notes
 
 class ConsultationResponse(BaseModel):
     consultation_id: str
@@ -91,6 +95,9 @@ class Consultation(BaseModel):
     
     # GP's provisional diagnosis
     provisional_diagnosis: Optional[str] = None  # GP's initial diagnosis before cardio review
+    
+    # Follow-up discussion
+    followup_notes: Optional[List[dict]] = []  # Follow-up notes from GP/Cardiologist
     
     # AI Analysis fields
     ecg_analysis: Optional[str] = None  # AI analysis of ECG image
