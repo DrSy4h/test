@@ -1455,7 +1455,7 @@ elif page_clean == "➕ New Consultation":
                 st.info(f"📄 {st.session_state.ecg_file.name} uploaded (PDF preview not available)")
             
             # AI Analysis button
-            if st.button("🤖 Analyze ECG with AI", key="analyze_ecg_btn"):
+            if st.button("🔮 NEXUS AI - Analyze ECG", key="analyze_ecg_btn"):
                 with st.spinner("🔄 Analyzing ECG image..."):
                     try:
                         # Read and encode image
@@ -1515,7 +1515,7 @@ elif page_clean == "➕ New Consultation":
                 st.info(f"📄 {st.session_state.xray_file.name} uploaded (PDF preview not available)")
             
             # AI Analysis button
-            if st.button("🤖 Analyze X-Ray with AI", key="analyze_xray_btn"):
+            if st.button("🔮 NEXUS AI - Analyze X-Ray", key="analyze_xray_btn"):
                 with st.spinner("🔄 Analyzing X-Ray image..."):
                     try:
                         # Read and encode image
