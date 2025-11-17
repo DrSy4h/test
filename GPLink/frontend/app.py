@@ -8,6 +8,7 @@ import requests
 import json
 import os
 import base64
+import gc
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -21,6 +22,9 @@ from dotenv import load_dotenv
 
 # Load environment variables from parent directory
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+
+# Memory optimization: Force garbage collection
+gc.collect()
 
 # API Base URL
 API_URL = "http://localhost:8000/api"
@@ -1205,21 +1209,31 @@ elif page_clean == "➕ New Consultation":
         st.error("❌ Only GP Clinicians and Administrators can create consultations.")
         st.stop()
     
-    # Initialize session state for file uploads
+    # Initialize session state for file uploads - clear on page load
+    if 'current_page' not in st.session_state or st.session_state.current_page != 'new_consultation':
+        st.session_state.ecg_file = None
+        st.session_state.xray_file = None
+        st.session_state.ecg_ai_analysis = None
+        st.session_state.xray_ai_analysis = None
+        st.session_state.current_page = 'new_consultation'
+        st.session_state.form_counter = 0
+    
     if 'ecg_file' not in st.session_state:
         st.session_state.ecg_file = None
     if 'xray_file' not in st.session_state:
         st.session_state.xray_file = None
+    if 'form_counter' not in st.session_state:
+        st.session_state.form_counter = 0
     
-    with st.form("consultation_form"):
+    with st.form(f"consultation_form_{st.session_state.form_counter}"):
         st.subheader("Patient Information")
         col1, col2 = st.columns(2)
         with col1:
-            patient_name = st.text_input("Patient Name")
-            patient_age = st.number_input("Age", min_value=0, max_value=120)
+            patient_name = st.text_input("Patient Name *")
+            patient_age = st.number_input("Age *", min_value=0, max_value=120, value=0)
         with col2:
-            patient_gender = st.selectbox("Gender", ["Male", "Female"])
-            patient_ic = st.text_input("IC/Passport No")
+            patient_gender = st.selectbox("Gender *", ["Male", "Female"])
+            patient_ic = st.text_input("IC/Passport No *")
         
         st.markdown("---")
         
@@ -1312,10 +1326,24 @@ elif page_clean == "➕ New Consultation":
             help="Normal: Non-urgent case; Urgent: Requires attention within 24-48 hours; Emergency: Immediate attention required"
         )
         
-        submit = st.form_submit_button("Submit Consultation Request")
+        col1, col2 = st.columns(2)
+        with col1:
+            submit = st.form_submit_button("Submit Consultation Request", type="primary")
+        with col2:
+            cancel = st.form_submit_button("Cancel")
+        
+        if cancel:
+            # Clear all session state and images
+            st.session_state.ecg_file = None
+            st.session_state.xray_file = None
+            st.session_state.ecg_ai_analysis = None
+            st.session_state.xray_ai_analysis = None
+            st.session_state.current_page = None
+            st.session_state.form_counter += 1  # Change form key to reset inputs
+            st.rerun()
         
         if submit:
-            if patient_name and symptoms:
+            if patient_name and patient_age > 0 and patient_ic and symptoms:
                 # Proceed with consultation creation
                 try:
                     patient_data = {
@@ -1367,68 +1395,37 @@ elif page_clean == "➕ New Consultation":
                         consultation_id = result['consultation_id']
                         st.success(f"✅ Consultation created successfully!")
                         st.info(f"Consultation ID: {consultation_id}")
-                    else:
-                        st.error(f"❌ Error creating consultation: {result.get('detail', 'Unknown error')}")
-                        consultation_id = None
-                    
-                    # Upload images if provided (using session state)
-                    if consultation_id and st.session_state.ecg_file:
-                        try:
-                            ecg_result = upload_ecg(consultation_id, st.session_state.ecg_file)
-                            st.success(f"📎 ECG image uploaded: {ecg_result['filename']}")
-                            
-                            # Auto-run AI analysis
-                            with st.spinner("🤖 Running AI analysis on ECG..."):
-                                try:
-                                    ai_response = requests.post(
-                                        f"{API_URL}/consultations/{consultation_id}/analyze-image",
-                                        params={"image_type": "ecg"}
-                                    )
-                                    if ai_response.status_code == 200:
-                                        ai_result = ai_response.json()
-                                        st.success("✅ AI analysis completed!")
-                                        with st.expander("🤖 View ECG Analysis", expanded=True):
-                                            st.info(ai_result.get('analysis', 'Analysis completed'))
-                                    else:
-                                        st.warning(f"⚠️ AI analysis skipped: {ai_response.text}")
-                                except Exception as ai_error:
-                                    st.warning(f"⚠️ AI analysis failed: {ai_error}")
-                        except Exception as e:
-                            st.warning(f"⚠️ ECG upload failed: {e}")
-                    
-                    if consultation_id and st.session_state.xray_file:
-                        try:
-                            xray_result = upload_xray(consultation_id, st.session_state.xray_file)
-                            st.success(f"📎 X-Ray image uploaded: {xray_result['filename']}")
-                            
-                            # Auto-run AI analysis
-                            with st.spinner("🤖 Running AI analysis on X-Ray..."):
-                                try:
-                                    ai_response = requests.post(
-                                        f"{API_URL}/consultations/{consultation_id}/analyze-image",
-                                        params={"image_type": "xray"}
-                                    )
-                                    if ai_response.status_code == 200:
-                                        ai_result = ai_response.json()
-                                        st.success("✅ AI analysis completed!")
-                                        with st.expander("🤖 View X-Ray Analysis", expanded=True):
-                                            st.info(ai_result.get('analysis', 'Analysis completed'))
-                                    else:
-                                        st.warning(f"⚠️ AI analysis skipped: {ai_response.text}")
-                                except Exception as ai_error:
-                                    st.warning(f"⚠️ AI analysis failed: {ai_error}")
-                        except Exception as e:
-                            st.warning(f"⚠️ X-Ray upload failed: {e}")
-                    
-                    # Clear uploaded files and AI analysis from session state after successful submission
-                    if consultation_id:
+                        
+                        # Upload images if provided (using session state)
+                        if st.session_state.ecg_file:
+                            try:
+                                ecg_result = upload_ecg(consultation_id, st.session_state.ecg_file)
+                                st.success(f"📎 ECG image uploaded: {ecg_result['filename']}")
+                            except Exception as e:
+                                st.warning(f"⚠️ ECG upload failed: {e}")
+                        
+                        if st.session_state.xray_file:
+                            try:
+                                xray_result = upload_xray(consultation_id, st.session_state.xray_file)
+                                st.success(f"📎 X-Ray image uploaded: {xray_result['filename']}")
+                            except Exception as e:
+                                st.warning(f"⚠️ X-Ray upload failed: {e}")
+                        
+                        # Clear uploaded files and AI analysis from session state after successful submission
                         st.session_state.ecg_file = None
                         st.session_state.xray_file = None
                         st.session_state.ecg_ai_analysis = None
                         st.session_state.xray_ai_analysis = None
+                        # Free memory
+                        gc.collect()
+                    else:
+                        st.error(f"❌ Error creating consultation: {result.get('detail', 'Unknown error')}")
                     
                 except Exception as e:
                     st.error(f"❌ Error: {e}")
+                finally:
+                    # Always collect garbage after submission
+                    gc.collect()
             else:
                 st.warning("Please fill in all required fields")
     
@@ -1447,7 +1444,11 @@ elif page_clean == "➕ New Consultation":
     with col1:
         ecg_upload = st.file_uploader("Upload ECG Image", type=["jpg", "jpeg", "png", "pdf"], key="ecg_uploader")
         if ecg_upload:
-            st.session_state.ecg_file = ecg_upload
+            # File size validation (max 5MB)
+            if ecg_upload.size > 5 * 1024 * 1024:
+                st.error("❌ File size exceeds 5MB. Please upload a smaller image.")
+            else:
+                st.session_state.ecg_file = ecg_upload
         if st.session_state.ecg_file:
             if st.session_state.ecg_file.type.startswith('image/'):
                 st.image(st.session_state.ecg_file, caption="ECG Preview", use_column_width=True)
@@ -1455,9 +1456,15 @@ elif page_clean == "➕ New Consultation":
                 st.info(f"📄 {st.session_state.ecg_file.name} uploaded (PDF preview not available)")
             
             # AI Analysis button
-            if st.button("Analyse with NEXUS AI", key="analyze_ecg_btn"):
+            if st.button("🤖 Analyse with NEXUS AI", key="analyze_ecg_btn"):
                 with st.spinner("🔄 Analyzing ECG image..."):
                     try:
+                        # Get API key
+                        api_key = os.getenv('GOOGLE_GEMINI_API_KEY')
+                        if not api_key:
+                            st.error("❌ API key not found. Please check .env file.")
+                            st.stop()
+                        
                         # Read and encode image
                         image_data = base64.standard_b64encode(st.session_state.ecg_file.getvalue()).decode("utf-8")
                         
@@ -1473,7 +1480,7 @@ elif page_clean == "➕ New Consultation":
                         mime_type = mime_type_map.get(file_ext, "image/jpeg")
                         
                         # Configure Gemini
-                        genai.configure(api_key=os.getenv('GOOGLE_GEMINI_API_KEY'))
+                        genai.configure(api_key=api_key)
                         model = genai.GenerativeModel("gemini-2.0-flash")
                         
                         # Prepare image
@@ -1494,6 +1501,10 @@ elif page_clean == "➕ New Consultation":
                         response = model.generate_content([prompt, image_part])
                         st.session_state.ecg_ai_analysis = response.text
                         st.success("✅ ECG Analysis Complete!")
+                        # Clear image data from memory after analysis
+                        image_data = None
+                        image_part = None
+                        gc.collect()
                     except Exception as e:
                         st.error(f"❌ Analysis failed: {str(e)}")
             
@@ -1507,7 +1518,11 @@ elif page_clean == "➕ New Consultation":
     with col2:
         xray_upload = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"], key="xray_uploader")
         if xray_upload:
-            st.session_state.xray_file = xray_upload
+            # File size validation (max 5MB)
+            if xray_upload.size > 5 * 1024 * 1024:
+                st.error("❌ File size exceeds 5MB. Please upload a smaller image.")
+            else:
+                st.session_state.xray_file = xray_upload
         if st.session_state.xray_file:
             if st.session_state.xray_file.type.startswith('image/'):
                 st.image(st.session_state.xray_file, caption="X-Ray Preview", use_column_width=True)
@@ -1515,7 +1530,7 @@ elif page_clean == "➕ New Consultation":
                 st.info(f"📄 {st.session_state.xray_file.name} uploaded (PDF preview not available)")
             
             # AI Analysis button
-            if st.button("Analyse with NEXUS AI", key="analyze_xray_btn"):
+            if st.button("🤖 Analyse with NEXUS AI", key="analyze_xray_btn"):
                 with st.spinner("🔄 Analyzing X-Ray image..."):
                     try:
                         # Read and encode image
@@ -1554,6 +1569,10 @@ elif page_clean == "➕ New Consultation":
                         response = model.generate_content([prompt, image_part])
                         st.session_state.xray_ai_analysis = response.text
                         st.success("✅ X-Ray Analysis Complete!")
+                        # Clear image data from memory after analysis
+                        image_data = None
+                        image_part = None
+                        gc.collect()
                     except Exception as e:
                         st.error(f"❌ Analysis failed: {str(e)}")
             
@@ -1566,13 +1585,20 @@ elif page_clean == "➕ New Consultation":
 
 # ============= VIEW CONSULTATIONS =============
 
-elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My Responses":
+elif page_clean == "📋 View My Consultations" or page_clean == "📋 View Consultations" or page_clean == "📋 View My Responses":
     user_email = st.session_state.user['email']
     user_role = st.session_state.user['role']
     
-    if page_clean == "📋 View My Consultations":
-        st.header("My Consultations")
-        st.markdown(f"**GP Clinician:** {st.session_state.user['name']}")
+    if page_clean == "📋 View My Consultations" or page_clean == "📋 View Consultations":
+        if page_clean == "📋 View Consultations":
+            st.header("All Consultations")
+            st.markdown(f"**Administrator:** {st.session_state.user['name']} - *Viewing ALL consultations*")
+        else:
+            st.header("My Consultations")
+            if user_role == 'admin':
+                st.markdown(f"**Administrator:** {st.session_state.user['name']} - *Viewing ALL consultations*")
+            else:
+                st.markdown(f"**GP Clinician:** {st.session_state.user['name']}")
     else:
         st.header("My Responses")
         st.markdown(f"**Cardiologist:** {st.session_state.user['name']}")
@@ -1676,9 +1702,7 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My R
                                    caption="ECG", width=400)
                             
                             # AI Analysis button
-                            col_btn1, col_btn2 = st.columns([1, 3])
-                            with col_btn1:
-                                if st.button("🤖 AI Analyze", key=f"analyze_ecg_{consult['consultation_id']}"):
+                            if st.button("🤖 Analyse with NEXUS AI", key=f"analyze_ecg_{consult['consultation_id']}"):
                                     with st.spinner("🔄 Analyzing ECG..."):
                                         try:
                                             response = requests.post(
@@ -1696,7 +1720,8 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My R
                             
                             # Display existing analysis if available
                             if consult.get('ecg_analysis'):
-                                st.info(f"**📋 AI Analysis:**\n\n{consult['ecg_analysis']}")
+                                st.markdown("**📋 AI ECG Analysis**")
+                                st.info(consult['ecg_analysis'])
                         
                         if consult['patient'].get('xray_image'):
                             st.markdown("**🩻 X-Ray Image:**")
@@ -1704,9 +1729,7 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My R
                                    caption="X-Ray", width=400)
                             
                             # AI Analysis button
-                            col_btn1, col_btn2 = st.columns([1, 3])
-                            with col_btn1:
-                                if st.button("🤖 AI Analyze", key=f"analyze_xray_{consult['consultation_id']}"):
+                            if st.button("🤖 Analyse with NEXUS AI", key=f"analyze_xray_{consult['consultation_id']}"):
                                     with st.spinner("🔄 Analyzing X-Ray..."):
                                         try:
                                             response = requests.post(
@@ -1724,7 +1747,8 @@ elif page_clean == "📋 View My Consultations" or page_clean == "📋 View My R
                             
                             # Display existing analysis if available
                             if consult.get('xray_analysis'):
-                                st.info(f"**📋 AI Analysis:**\n\n{consult['xray_analysis']}")
+                                st.markdown("**📋 AI X-Ray Analysis**")
+                                st.info(consult['xray_analysis'])
                         
                         st.markdown("**Clinic Doctor:**")
                         st.write(f"{consult['clinic_doctor_name']}")
@@ -2292,6 +2316,9 @@ elif page_clean == "💬 Respond to Consultation":
                                         cardiologist_email
                                     )
                                     st.success("✅ Response submitted successfully!")
+                                    # Clear selected consultation and stay on this page
+                                    if 'selected_consultation_id' in st.session_state:
+                                        del st.session_state.selected_consultation_id
                                     st.rerun()  # Refresh page to show updated list
                                 except Exception as e:
                                     st.error(f"❌ Error submitting response: {e}")
@@ -2468,9 +2495,7 @@ elif page_clean == "📊 Statistics" or page_clean == "📊 My Statistics":
                                            caption="ECG", width=400)
                                     
                                     # AI Analysis button for ECG
-                                    col_analyze, col_space = st.columns([1, 2])
-                                    with col_analyze:
-                                        if st.button("🤖 Analyze ECG", key="btn_analyze_ecg"):
+                                    if st.button("🤖 Analyse with NEXUS AI", key="btn_analyze_ecg"):
                                             with st.spinner("🔄 Analyzing ECG image..."):
                                                 response = requests.post(
                                                     f"{API_URL}/consultations/{selected_consult['consultation_id']}/analyze-image",
@@ -2496,9 +2521,7 @@ elif page_clean == "📊 Statistics" or page_clean == "📊 My Statistics":
                                            caption="X-Ray", width=400)
                                     
                                     # AI Analysis button for X-Ray
-                                    col_analyze, col_space = st.columns([1, 2])
-                                    with col_analyze:
-                                        if st.button("🤖 Analyze X-Ray", key="btn_analyze_xray"):
+                                    if st.button("🤖 Analyse with NEXUS AI", key="btn_analyze_xray"):
                                             with st.spinner("🔄 Analyzing X-Ray image..."):
                                                 response = requests.post(
                                                     f"{API_URL}/consultations/{selected_consult['consultation_id']}/analyze-image",

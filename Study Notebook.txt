@@ -5,3 +5,36 @@ Mac: python3 --version
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 venv Activation Mac: source venv/bin/activate
+
+git config --global user.email "dr.ahmadsyahid@gmail.com"
+  git config --global user.name "DrSy4h"
+
+#update repo
+git add .
+git commit -m "your comment"
+git push
+
+To clone other project: git clone repo directory
+
+Kaggle:open source
+
+Mondo: Username drsy4h p/w uBwLQoc1F00th8dl
+
+mongodb+srv://drsy4h:uBwLQoc1F00th8dl@cluster0.wqpjziw.mongodb.net/?appName=Cluster0
+
+to list all libraries/requirements: pip freeze > requirements.txt
+
+Streamlit:
+Windows:
+
+1) https://cmake.org/download/
+2) During install, check:
+	✔ "Add CMake to system PATH"
+3) https://visualstudio.microsoft.com/visual-cpp-build-tools/
+	Install Desktop development with C++
+	✔ MSVC
+	✔ Windows 10/11 SDK
+	✔ C++ CMake tools for Windows
+4) pip install --upgrade pip setuptools wheel
+5) pip install --upgrade pyarrow
+6) pip install streamlit

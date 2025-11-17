@@ -9,7 +9,8 @@ from pathlib import Path
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from parent directory (GPLink/.env)
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 # Configure Gemini API
 GEMINI_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY")
