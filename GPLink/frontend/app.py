@@ -1197,24 +1197,11 @@ elif page_clean == "➕ New Consultation":
         st.error("❌ Only GP Clinicians and Administrators can create consultations.")
         st.stop()
     
-    # File uploaders MUST be outside form
-    st.subheader("📎 Medical Images (Optional)")
-    st.markdown("*Upload ECG and/or X-Ray images before filling the form*")
-    col1, col2 = st.columns(2)
-    with col1:
-        ecg_file = st.file_uploader("Upload ECG Image", type=["jpg", "jpeg", "png", "pdf"], key="ecg_uploader")
-        if ecg_file and ecg_file.type.startswith('image/'):
-            st.image(ecg_file, caption="ECG Preview", use_column_width=True)
-        elif ecg_file:
-            st.info(f"📄 {ecg_file.name} uploaded (PDF preview not available)")
-    with col2:
-        xray_file = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"], key="xray_uploader")
-        if xray_file and xray_file.type.startswith('image/'):
-            st.image(xray_file, caption="X-Ray Preview", use_column_width=True)
-        elif xray_file:
-            st.info(f"📄 {xray_file.name} uploaded (PDF preview not available)")
-    
-    st.markdown("---")
+    # Initialize session state for file uploads
+    if 'ecg_file' not in st.session_state:
+        st.session_state.ecg_file = None
+    if 'xray_file' not in st.session_state:
+        st.session_state.xray_file = None
     
     with st.form("consultation_form"):
         st.subheader("Patient Information")
@@ -1264,6 +1251,9 @@ elif page_clean == "➕ New Consultation":
         )
         
         st.markdown("---")
+        
+        st.markdown("### 📎 Medical Images (Optional)")
+        st.markdown("*Note: File uploads must be done outside the form. Please scroll down to upload images after completing this form.*")
         
         image_remarks = st.text_area(
             "Remarks on Images (Optional)",
@@ -1373,10 +1363,10 @@ elif page_clean == "➕ New Consultation":
                         st.error(f"❌ Error creating consultation: {result.get('detail', 'Unknown error')}")
                         consultation_id = None
                     
-                    # Upload images if provided
-                    if consultation_id and ecg_file:
+                    # Upload images if provided (using session state)
+                    if consultation_id and st.session_state.ecg_file:
                         try:
-                            ecg_result = upload_ecg(consultation_id, ecg_file)
+                            ecg_result = upload_ecg(consultation_id, st.session_state.ecg_file)
                             st.success(f"📎 ECG image uploaded: {ecg_result['filename']}")
                             
                             # Auto-run AI analysis
@@ -1398,9 +1388,9 @@ elif page_clean == "➕ New Consultation":
                         except Exception as e:
                             st.warning(f"⚠️ ECG upload failed: {e}")
                     
-                    if consultation_id and xray_file:
+                    if consultation_id and st.session_state.xray_file:
                         try:
-                            xray_result = upload_xray(consultation_id, xray_file)
+                            xray_result = upload_xray(consultation_id, st.session_state.xray_file)
                             st.success(f"📎 X-Ray image uploaded: {xray_result['filename']}")
                             
                             # Auto-run AI analysis
@@ -1422,10 +1412,38 @@ elif page_clean == "➕ New Consultation":
                         except Exception as e:
                             st.warning(f"⚠️ X-Ray upload failed: {e}")
                     
+                    # Clear uploaded files from session state after successful submission
+                    if consultation_id:
+                        st.session_state.ecg_file = None
+                        st.session_state.xray_file = None
+                    
                 except Exception as e:
                     st.error(f"❌ Error: {e}")
             else:
                 st.warning("Please fill in all required fields")
+    
+    # File uploaders section (OUTSIDE form - after form submission logic)
+    st.markdown("---")
+    st.subheader("📎 Upload Medical Images")
+    st.markdown("*Upload ECG and/or X-Ray images here (displayed after upload)*")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        ecg_upload = st.file_uploader("Upload ECG Image", type=["jpg", "jpeg", "png", "pdf"], key="ecg_uploader")
+        if ecg_upload:
+            st.session_state.ecg_file = ecg_upload
+        if st.session_state.ecg_file and st.session_state.ecg_file.type.startswith('image/'):
+            st.image(st.session_state.ecg_file, caption="ECG Preview", use_column_width=True)
+        elif st.session_state.ecg_file:
+            st.info(f"📄 {st.session_state.ecg_file.name} uploaded (PDF preview not available)")
+    with col2:
+        xray_upload = st.file_uploader("Upload X-Ray Image", type=["jpg", "jpeg", "png", "pdf"], key="xray_uploader")
+        if xray_upload:
+            st.session_state.xray_file = xray_upload
+        if st.session_state.xray_file and st.session_state.xray_file.type.startswith('image/'):
+            st.image(st.session_state.xray_file, caption="X-Ray Preview", use_column_width=True)
+        elif st.session_state.xray_file:
+            st.info(f"📄 {st.session_state.xray_file.name} uploaded (PDF preview not available)")
 
 # ============= VIEW CONSULTATIONS =============
 
