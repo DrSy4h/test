@@ -19,8 +19,8 @@ from reportlab.lib import colors
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from parent directory
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 # API Base URL
 API_URL = "http://localhost:8000/api"
