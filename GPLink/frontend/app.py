@@ -403,6 +403,12 @@ if 'user' not in st.session_state:
 
 # ============= LOGIN PAGE =============
 
+# Initialize session state at the very start
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'user' not in st.session_state:
+    st.session_state.user = None
+
 if not st.session_state.logged_in:
     # Custom header
     st.markdown("""
@@ -1033,9 +1039,12 @@ elif page_clean == "👥 Manage Doctors":
                                                 edit_mmc,
                                                 edit_nsr
                                             )
-                                            st.success("✅ Cardiologist updated successfully!")
-                                            st.session_state[edit_key] = False
-                                            st.rerun()
+                                            if result.get('success', False) or result.get('message'):
+                                                st.success("✅ Cardiologist updated successfully!")
+                                                st.session_state[edit_key] = False
+                                                st.rerun()
+                                            else:
+                                                st.error(f"❌ Update failed: {result.get('error', 'Unknown error')}")
                                         except Exception as e:
                                             st.error(f"❌ Error: {e}")
                                     else:

@@ -70,14 +70,15 @@ def update_doctor(email: str, doctor: Doctor):
     """Update doctor information"""
     try:
         doctor_dict = doctor.dict()
+        # Update using old email to find the document
         result = doctors_collection.update_one(
             {"email": email},
             {"$set": doctor_dict}
         )
-        if result.modified_count > 0:
+        if result.matched_count > 0:
             return {"success": True, "message": "Doctor updated successfully"}
         else:
-            return {"success": False, "error": "Doctor not found or no changes made"}
+            return {"success": False, "error": "Doctor not found"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
