@@ -1,0 +1,44 @@
+# Ignore backend services
+backend/
+
+# Ignore database files
+*.db
+*.sqlite
+
+# Ignore system files
+.git/
+.github/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.DS_Store
+Thumbs.db
+
+# Ignore upload directory (can be large)
+uploads/
+
+# Ignore documentation
+*.md
+*.txt
+.gitignore
+.env
+
+# Ignore caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore deployment files
+pyproject.toml
+setup.py
+setup.cfg
+MANIFEST.in
